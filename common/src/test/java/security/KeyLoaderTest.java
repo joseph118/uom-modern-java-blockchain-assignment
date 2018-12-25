@@ -1,11 +1,11 @@
-package mt.edu.um.las3006.assignment.security;
+package security;
 
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
-import static mt.edu.um.las3006.assignment.security.SecurityTestUtils.ENCODED_PUBKEY;
-import static mt.edu.um.las3006.assignment.security.SecurityTestUtils.KEYSTORE_PASSWORD;
-import static mt.edu.um.las3006.assignment.security.SecurityTestUtils.KEY_ALIAS;
-import static mt.edu.um.las3006.assignment.security.SecurityTestUtils.KEY_PASSWORD;
+import static security.SecurityTestUtils.ENCODED_PUBKEY;
+import static security.SecurityTestUtils.KEYSTORE_PASSWORD;
+import static security.SecurityTestUtils.KEY_ALIAS;
+import static security.SecurityTestUtils.KEY_PASSWORD;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;

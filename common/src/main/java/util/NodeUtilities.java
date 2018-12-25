@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.Properties;
 
 public class NodeUtilities {
+    private NodeUtilities() {
+        // this class only provides static methods
+    }
+
     private static final String propertyNodeFileName = "nodes.properties";
 
     public static List<ServerNode> getNodes() {

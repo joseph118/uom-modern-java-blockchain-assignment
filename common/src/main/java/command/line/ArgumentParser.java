@@ -7,6 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ArgumentParser {
+    private ArgumentParser() {
+
+    }
 
     /**
      * Converts the given arguments into a Map. The values have to be delimited by equals and

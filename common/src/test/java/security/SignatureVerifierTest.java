@@ -1,6 +1,6 @@
-package mt.edu.um.las3006.assignment.security;
+package security;
 
-import static mt.edu.um.las3006.assignment.security.SecurityTestUtils.ENCODED_PUBKEY;
+import static security.SecurityTestUtils.ENCODED_PUBKEY;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 

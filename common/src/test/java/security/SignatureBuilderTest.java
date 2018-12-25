@@ -1,4 +1,4 @@
-package mt.edu.um.las3006.assignment.security;
+package security;
 
 import static org.junit.Assert.assertNotNull;
 
