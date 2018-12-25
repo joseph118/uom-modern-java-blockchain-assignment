@@ -1,4 +1,4 @@
-package mt.edu.um.las3006.assignment.security;
+package security;
 
 import java.security.PublicKey;
 import java.security.Signature;
