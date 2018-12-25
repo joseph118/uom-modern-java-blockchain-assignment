@@ -1,13 +1,13 @@
 import com.sun.media.sound.InvalidDataException;
 import command.line.ArgumentParser;
-import exception.ArgumentsNotFoundException;
+import model.ServerNode;
+import util.NodeUtilities;
 
+import java.util.InvalidPropertiesFormatException;
 import java.util.Map;
 import java.util.Scanner;
 
 public class App {
-    private String userPublicKey;
-    private String userPrivateKey;
 
     /**
      *
@@ -29,11 +29,17 @@ public class App {
                 Scanner scanner = new Scanner(System.in);
                 String userPassword = scanner.nextLine();
 
-                // TODO lookup get IP and Port from node.properties
-                // TODO attempt to connect
-                // TODO send the request - signed with private key (Appendix A)
-                // TODO wait for request and sign the request to confirm true node.
+                if (App.isPasswordValid(userPassword)) {
+                    ServerNode node = NodeUtilities.getNode(map.get("nodename"));
 
+                    if (node != null) {
+                        // TODO attempt to connect
+                        // TODO send the request - signed with private key (Appendix A)
+                        // TODO wait for request and sign the request to confirm true node.
+                    } else {
+                        throw new InvalidDataException("Properties are either invalid or the Node name doesn't exists.");
+                    }
+                }
             } else {
                 throw new InvalidDataException("Arguments 'username', 'nodename', and 'command' are required.");
             }
@@ -47,5 +53,9 @@ public class App {
         return map.containsKey("username")
                 && map.containsKey("nodename")
                 && map.containsKey("command");
+    }
+
+    private static boolean isPasswordValid(String password) {
+        return true;
     }
 }
