@@ -1,5 +1,6 @@
 package util;
 
+import model.Ledger;
 import model.Transaction;
 
 import java.io.BufferedReader;
@@ -10,11 +11,11 @@ import java.util.stream.Collectors;
 
 public class LedgerUtilities {
 
-    public static List<Transaction> getTransactions(String nodeName) {
+    public static Ledger getTransactions(String nodeName) {
         try (InputStream nodeLedgerStream = ClassLoader.getSystemResourceAsStream(nodeName.concat(".ledger"))) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(nodeLedgerStream));
 
-            return reader.lines()
+            List<Transaction> transactions = reader.lines()
                     .map(s -> s.split(","))
                     .map(strings -> new Transaction(
                             Long.parseLong(strings[0]),   // Timestamp
@@ -31,6 +32,7 @@ public class LedgerUtilities {
                     ))
                     .collect(Collectors.toList());
 
+            return new Ledger(transactions);
         } catch (Exception e) {
             System.out.println(e.toString());
         }

@@ -13,7 +13,9 @@ public class Transaction {
     private final String verificationSignature3;
     private final String confirmationSignature;
 
-    public Transaction(long timestamp, String hash, String guid, String senderPublicKey, String recipientPublicKey, float transactionAmount, String senderAuthorisationSignature, String verificationSignature1, String verificationSignature2, String verificationSignature3, String confirmationSignature) {
+    public Transaction(long timestamp, String hash, String guid, String senderPublicKey, String recipientPublicKey,
+                       float transactionAmount, String senderAuthorisationSignature, String verificationSignature1,
+                       String verificationSignature2, String verificationSignature3, String confirmationSignature) {
         this.timestamp = timestamp;
         this.hash = hash;
         this.guid = guid;
