@@ -19,4 +19,12 @@ public class KeyHolder {
     public PrivateKey getPrivateKey() {
         return privateKey;
     }
+
+    @Override
+    public String toString() {
+        return "KeyHolder{" +
+                "publicKey=" + publicKey +
+                ", privateKey=" + privateKey +
+                '}';
+    }
 }

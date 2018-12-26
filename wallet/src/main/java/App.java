@@ -1,4 +1,3 @@
-import com.sun.media.sound.InvalidDataException;
 import command.line.ArgumentParser;
 import model.KeyHolder;
 import model.ServerNode;
@@ -38,25 +37,30 @@ public class App {
                     Scanner scanner = new Scanner(System.in);
                     String userPassword = scanner.nextLine();
 
-                    KeyHolder userKeys = App.getUserKey(username, userPassword);
-                    if (userKeys != null) {
-                        ServerNode node = NodeUtilities.getNode(map.get("nodename"));
+                    URL userResource = App.getUserResource(username);
+                    if (userResource != null) {
+                        KeyHolder userKeys = App.getUserKey(username, userPassword, userResource);
+                        if (userKeys != null) {
+                            ServerNode node = NodeUtilities.getNode(map.get("nodename"));
 
-                        if (node != null) {
-                            // TODO attempt to connect
-                            // TODO send the request - signed with private key (Appendix A)
-                            // TODO wait for request and sign the request to confirm true node.
+                            if (node != null) {
+                                // TODO attempt to connect
+                                // TODO send the request - signed with private key (Appendix A)
+                                // TODO wait for request and sign the request to confirm true node.
+                            } else {
+                                throw new Exception("Node name doesn't exists.");
+                            }
                         } else {
-                            throw new InvalidDataException("Node name doesn't exists.");
+                            throw new Exception("Password is incorrect.");
                         }
                     } else {
-                        throw new InvalidDataException("Password is incorrect.");
+                        throw new Exception("Username is incorrect.");
                     }
                 } else {
-                    throw new InvalidDataException("Command must be one of the following:\n balance\n history\n transfer");
+                    throw new Exception("Command must be one of the following:\n balance\n history\n transfer");
                 }
             } else {
-                throw new InvalidDataException("Arguments 'username', 'nodename', and 'command' are required.");
+                throw new Exception("Arguments 'username', 'nodename', and 'command' are required.");
             }
         } catch (Exception e) {
             System.out.println(e.toString());
@@ -83,8 +87,7 @@ public class App {
         return Command.OTHER;
     }
 
-    private static KeyHolder getUserKey(String name, String password) {
-        URL url = App.class.getResource(name.concat(".pfx"));
+    private static KeyHolder getUserKey(String name, String password, URL url) {
 
         try {
             Path path = Paths.get(url.toURI());
@@ -98,5 +101,9 @@ public class App {
         }
 
         return null;
+    }
+
+    private static URL getUserResource(String name) {
+        return App.class.getResource(name.concat(".pfx"));
     }
 }

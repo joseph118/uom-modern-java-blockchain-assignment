@@ -22,5 +22,14 @@ public class ServerNode {
     public String getName() {
         return name;
     }
+
+    @Override
+    public String toString() {
+        return "ServerNode{" +
+                "name='" + name + '\'' +
+                ", ip='" + ip + '\'' +
+                ", port='" + port + '\'' +
+                '}';
+    }
 }
 

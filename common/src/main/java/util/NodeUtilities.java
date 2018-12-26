@@ -3,6 +3,7 @@ package util;
 import model.ServerNode;
 
 import java.io.FileInputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -54,7 +55,9 @@ public class NodeUtilities {
     }
 
     private static Properties getProperties() {
-        try (final FileInputStream fis = new FileInputStream(NodeUtilities.propertyNodeFileName)) {
+        URL url = ClassLoader.getSystemResource(NodeUtilities.propertyNodeFileName);
+
+        try (final FileInputStream fis = new FileInputStream(url.getFile())) {
             final Properties properties = new Properties();
             properties.load(fis);
 

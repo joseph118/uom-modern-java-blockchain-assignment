@@ -1,4 +1,3 @@
-import com.sun.media.sound.InvalidDataException;
 import command.line.ArgumentParser;
 import model.KeyHolder;
 import security.KeyLoader;
@@ -26,14 +25,15 @@ public class App {
                 KeyHolder nodeKeys = App.getNodeKeys(map.get("nodename"));
 
                 if (nodeKeys != null) {
+                    System.out.println(nodeKeys);
                     // TODO: Connect with other nodes, if it fails it must reconnect later on but still success....
                     // TODO: This will only handle balance and history request if this node is connected to less than 3 nodes.
                     // TODO: Each node will have its own ledger (csv file) (appendix b)
                 } else {
-                    throw new InvalidDataException("Invalid node name.");
+                    throw new Exception("Invalid node name.");
                 }
             } else {
-                throw new InvalidDataException("Arguments 'nodename' and 'port' are required.");
+                throw new Exception("Arguments 'nodename' and 'port' are required.");
             }
         } catch (Exception e) {
             System.out.println(e.toString());
