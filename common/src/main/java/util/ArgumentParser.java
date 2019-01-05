@@ -1,4 +1,4 @@
-package command.line;
+package util;
 
 import exception.ArgumentsNotFoundException;
 
@@ -12,20 +12,19 @@ public class ArgumentParser {
     }
 
     /**
-     * Converts the given arguments into a Map. The values have to be delimited by equals and
-     *  the strings will be converted to lower case.
+     * Converts the given arguments into a Map. Keys are converted to lower case.
      *
      * @param args
      * @return
      * @throws ArgumentsNotFoundException
      */
-    public static Map<String, String> convertCommandLineArgs(String[] args) throws ArgumentsNotFoundException {
+    public static Map<String, String> convertArgsToMap(String[] args, String delimiter) throws ArgumentsNotFoundException {
         return Arrays.stream(args)
-                .map(s -> s.split("=")) // [0] key, [1] String
+                .map(s -> s.split(delimiter, 2)) // [0] key, [1] String
                 .map(strings -> {
                     Map<String, String> map = new HashMap<>();
 
-                    map.put(strings[0].toLowerCase(), strings[1].toLowerCase());
+                    map.put(strings[0].toLowerCase(), strings[1]);
 
                     return map;
                 })

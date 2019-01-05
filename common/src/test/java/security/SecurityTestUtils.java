@@ -7,7 +7,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 /**
- * Utility methods for testing the signing classes with some test data and test keys.
+ * Utility methods for testing the signing classes with some test process and test keys.
  * 
  * @author Josef Bajada - josef.bajada@um.edu.mt
  */

@@ -7,7 +7,7 @@ import java.security.SignatureException;
 import java.util.Base64;
 
 /**
- * A helper class to sign data using the provided private key using the
+ * A helper class to sign process using the provided private key using the
  * signing algorithm specified by the super class.
  *
  * <p>You can use this class to sign a payload made of multiple parts as follows:</p>
@@ -30,7 +30,7 @@ public class SignatureBuilder extends SignatureProxy<SignatureBuilder> {
    * Creates an instance of this class using the specified private key to
    * eventually generate a signature.
    *
-   * @param privateKey - the private key to use to sign the payload data
+   * @param privateKey - the private key to use to sign the payload process
    * @see SignatureProxy#addData(String)
    * @see SignatureBuilder#sign()
    */

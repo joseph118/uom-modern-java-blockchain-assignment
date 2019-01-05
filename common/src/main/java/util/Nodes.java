@@ -9,15 +9,15 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 
-public class NodeUtilities {
-    private NodeUtilities() {
+public class Nodes {
+    private Nodes() {
         // this class only provides static methods
     }
 
-    private static final String propertyNodeFileName = "nodes.properties";
+    private static final String NODE_PROPERTY_FILENAME = "nodes.properties";
 
-    public static List<ServerNode> getNodes() {
-        final Properties properties = NodeUtilities.getProperties();
+    public static List<ServerNode> getServerNodes() {
+        final Properties properties = Nodes.getProperties();
 
         if (properties != null) {
             List<ServerNode> serverNodes = new ArrayList<>();
@@ -27,7 +27,7 @@ public class NodeUtilities {
                 String nodeName = (String) e.nextElement();
                 String data = properties.getProperty(nodeName);
 
-                serverNodes.add(NodeUtilities.mapToServerNode(nodeName, data));
+                serverNodes.add(Nodes.mapToServerNode(nodeName, data));
             }
 
             return serverNodes;
@@ -36,26 +36,19 @@ public class NodeUtilities {
         return null;
     }
 
-    public static ServerNode getNode(String nodeName) {
-        final String data = NodeUtilities.getServerNode(nodeName);
+    public static ServerNode getServerNode(String nodeName) {
+        final Properties properties = Nodes.getProperties();
 
-        if (data != null) {
-            return NodeUtilities.mapToServerNode(nodeName, data);
+        if (properties != null) {
+            return Nodes.mapToServerNode(nodeName,
+                    properties.getProperty(nodeName, null));
         }
 
         return null;
     }
 
-    private static String getServerNode(String nodeName) {
-        final Properties properties = NodeUtilities.getProperties();
-
-        return properties == null
-                ? null
-                : properties.getProperty(nodeName, null);
-    }
-
     private static Properties getProperties() {
-        URL url = ClassLoader.getSystemResource(NodeUtilities.propertyNodeFileName);
+        final URL url = ClassLoader.getSystemResource(Nodes.NODE_PROPERTY_FILENAME);
 
         try (final FileInputStream fis = new FileInputStream(url.getFile())) {
             final Properties properties = new Properties();
@@ -72,7 +65,7 @@ public class NodeUtilities {
     private static ServerNode mapToServerNode(String nodeName, String data) {
         final String[] ipAndPort = data.split(":");
         final String ip = ipAndPort[0];
-        final String port = ipAndPort[1];
+        final int port = Integer.parseInt(ipAndPort[1]);
 
         return new ServerNode(nodeName, ip, port);
     }

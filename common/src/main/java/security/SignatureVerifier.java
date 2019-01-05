@@ -29,7 +29,7 @@ public class SignatureVerifier extends SignatureProxy<SignatureVerifier> {
    * Creates an instance of this class using the specified private key to
    * eventually generate a signature.
    *
-   * @param publicKey - the public key to use to verify the signature of the payload data
+   * @param publicKey - the public key to use to verify the signature of the payload process
    * @see SignatureProxy#addData(String)
    * @see SignatureVerifier#verify(String)
    */

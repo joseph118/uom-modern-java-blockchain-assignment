@@ -1,11 +1,16 @@
-import command.line.ArgumentParser;
+import util.ArgumentParser;
+import model.Command;
 import model.KeyHolder;
 import model.ServerNode;
-import model.enums.Command;
 import security.KeyLoader;
-import util.NodeUtilities;
+import security.SignatureBuilder;
+import util.Commands;
+import util.Nodes;
 
+import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
@@ -23,32 +28,65 @@ public class App {
         Map<String, String> map;
 
         try {
-            map = ArgumentParser.convertCommandLineArgs(args);
+            map = ArgumentParser.convertArgsToMap(args, "=");
 
             if (App.isMapValid(map)) {
-                Command userCommand = App.convertToCommand(map.get("command"));
+                final Command userCommand = Commands.convertToCommand(map.get("command").toUpperCase());
                 if (!userCommand.equals(Command.OTHER)) {
-                    String username = map.get("username");
+                    final String username = map.get("username");
 
                     System.out.println("Hi "
                             .concat(username)
                             .concat(", \n Kindly input your password: \n"));
 
-                    Scanner scanner = new Scanner(System.in);
-                    String userPassword = scanner.nextLine();
+                    final Scanner scanner = new Scanner(System.in);
+                    final String userPassword = scanner.nextLine();
 
-                    URL userResource = App.getUserResource(username);
-                    if (userResource != null) {
-                        KeyHolder userKeys = App.getUserKey(username, userPassword, userResource);
+                    final URL userKeyResource = App.getResource(username, ".pfx");
+                    if (userKeyResource != null) {
+                        final KeyHolder userKeys = App.getUserKey(username, userPassword, userKeyResource);
                         if (userKeys != null) {
-                            ServerNode node = NodeUtilities.getNode(map.get("nodename"));
+                            final String nodeName = map.get("nodename");
+                            final ServerNode node = Nodes.getServerNode(nodeName);
 
                             if (node != null) {
-                                // TODO attempt to connect
-                                // TODO send the request - signed with private key (Appendix A)
-                                // TODO wait for request and sign the request to confirm true node.
+                                //final URL nodeCertificateResource = App.getResource(nodeName, ".crt");
+
+                                InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
+                                SocketChannel client = SocketChannel.open(nodeAddress);
+
+                                if (client.isConnected()) {
+                                    ByteBuffer buffer = ByteBuffer.allocate(2048);
+                                    StringBuilder requestBuilder = new StringBuilder();
+
+                                    final SignatureBuilder signatureBuilder = new SignatureBuilder(userKeys.getPrivateKey());
+                                    signatureBuilder.addData(userCommand.name());
+
+                                    requestBuilder.append("signature=")
+                                            .append(signatureBuilder.sign())
+                                            .append(",key=").append(KeyLoader.encodePublicKey(userKeys.getPublicKey()))
+                                            .append(",command=").append(userCommand.name());
+
+                                    if (userCommand.equals(Command.TRANSFER)) {
+
+                                    }
+
+                                    client.write(ByteBuffer.wrap(requestBuilder.toString().getBytes()));
+
+                                    int bytesRead = client.read(buffer);
+                                    if (bytesRead > 0) {
+                                        byte[] byteArray = new byte[bytesRead];
+                                        buffer.flip();
+                                        buffer.get(byteArray);
+
+                                        String response = new String(buffer.array()).trim();
+                                        System.out.println(response);
+                                    }
+
+                                    client.close();
+                                }
                             } else {
-                                throw new Exception("Node name doesn't exists.");
+                                throw new Exception("Nodes name doesn't exists.");
                             }
                         } else {
                             throw new Exception("Password is incorrect.");
@@ -74,19 +112,6 @@ public class App {
                 && map.containsKey("command");
     }
 
-    private static Command convertToCommand(String command) {
-        switch (command) {
-            case "balance":
-                return Command.BALANCE;
-            case "history":
-                return Command.HISTORY;
-            case "transfer":
-                return Command.TRANSFER;
-        }
-
-        return Command.OTHER;
-    }
-
     private static KeyHolder getUserKey(String name, String password, URL url) {
 
         try {
@@ -103,7 +128,7 @@ public class App {
         return null;
     }
 
-    private static URL getUserResource(String name) {
-        return App.class.getResource(name.concat(".pfx"));
+    private static URL getResource(String name, String extension) {
+        return App.class.getResource(name.concat(extension));
     }
 }

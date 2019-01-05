@@ -3,9 +3,9 @@ package model;
 public class ServerNode {
     private final String name;
     private final String ip;
-    private final String port;
+    private final int port;
 
-    public ServerNode(String name, String ip, String port) {
+    public ServerNode(String name, String ip, int port) {
         this.name = name;
         this.ip = ip;
         this.port = port;
@@ -15,7 +15,7 @@ public class ServerNode {
         return ip;
     }
 
-    public String getPort() {
+    public int getPort() {
         return port;
     }
 

@@ -1,4 +1,4 @@
-package model.enums;
+package model;
 
 public enum Command {
     TRANSFER, BALANCE, HISTORY, OTHER
