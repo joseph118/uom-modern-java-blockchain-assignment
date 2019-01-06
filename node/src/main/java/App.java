@@ -1,5 +1,6 @@
 import exception.ArgumentsNotFoundException;
 import model.*;
+import security.SignatureBuilder;
 import security.SignatureVerifier;
 import util.ArgumentParser;
 import security.KeyLoader;
@@ -72,7 +73,7 @@ public class App {
                                 App.registerClient((ServerSocketChannel) key.channel(), selector);
 
                             } else if (key.isValid() && key.isReadable()) {
-                                App.processRequest(nodeName, key, buffer);
+                                App.processRequest(nodeName, key, buffer, nodeKeys.getPrivateKey());
 
                             }
 
@@ -119,60 +120,91 @@ public class App {
         System.out.println("Connection Accepted: " + client.getLocalAddress().toString() + "\n");
     }
 
-    private static void processRequest(String nodeName, SelectionKey key, ByteBuffer buffer) throws IOException, ArgumentsNotFoundException {
+    private static void processRequest(String nodeName, SelectionKey key, ByteBuffer buffer, PrivateKey privateKey) throws IOException, ArgumentsNotFoundException {
         final SocketChannel client = (SocketChannel) key.channel();
         client.read(buffer);
 
-        final String data = new String(buffer.array()).trim();
+        final String clientData = new String(buffer.array()).trim();
         final Map<String, String> requestMessage = ArgumentParser
-                .convertArgsToMap(data.split(","), "=");
+                .convertArgsToMap(clientData.split(","), "=");
         buffer.clear();
 
         if (App.isRequestArgumentsValid(requestMessage)) {
-            final String signature = requestMessage.get("signature");
             final String command = requestMessage.get("command");
+            Command userCommand = Commands.convertToCommand(command);
+
+            final String signature = requestMessage.get("signature");
             final String base64PublicKey = requestMessage.get("key");
             final PublicKey publicKey = KeyLoader.decodePublicKey(base64PublicKey);
 
-            if (App.verifyUserSignature(publicKey, command, signature)) {
-                Command userCommand = Commands.convertToCommand(command);
+            if (userCommand.equals(Command.TRANSFER)) {
+                final String destinationKey = requestMessage.get("destinationKey");
+                final String guid = requestMessage.get("guid");
+                final String stringAmount = requestMessage.get("amount");
+                final float amount = Float.parseFloat(stringAmount);
 
-                if (userCommand.equals(Command.TRANSFER)) {
+                if (App.verifyUserSignature(publicKey, command, signature, destinationKey, guid, stringAmount)) {
 
-                    // TODO: Transfer process
-                } else if (userCommand.equals(Command.HISTORY)) {
-                    String history = Ledger.getUserHistoryAsString(nodeName, base64PublicKey);
-
-                    // TODO: sign response
-                    client.write(ByteBuffer.wrap(history.getBytes()));
-                    client.close();
-                } else if (userCommand.equals(Command.BALANCE)) {
-                    String balance = Ledger.getUserBalance(nodeName, base64PublicKey);
-
-                    // TODO: sign response
-                    client.write(ByteBuffer.wrap(balance.getBytes()));
-                    client.close();
+                    // TODO: transfer....
                 } else {
-                    client.write(ByteBuffer.wrap("Invalid command".getBytes()));
+                    client.write(ByteBuffer.wrap("error=Invalid signature".getBytes()));
                     client.close();
                 }
+            } else if (userCommand.equals(Command.HISTORY) || userCommand.equals(Command.BALANCE)) {
+                if (App.verifyUserSignature(publicKey, command, signature)) {
+                    final String data = (userCommand.equals(Command.HISTORY))
+                            ? Ledger.getUserHistoryAsString(nodeName, base64PublicKey)
+                            : Ledger.getUserBalance(nodeName, base64PublicKey);
+
+                    final String signedSignature = App.generateSignature(privateKey, data);
+                    final String responseData = App.generateBody(signedSignature, data);
+
+                    client.write(ByteBuffer.wrap(responseData.getBytes()));
+                } else {
+                    client.write(ByteBuffer.wrap("error=Invalid signature".getBytes()));
+                }
+
+                client.close();
             } else {
-                System.out.println("Invalid signature");
-                client.write(ByteBuffer.wrap("Invalid signature".getBytes()));
+                client.write(ByteBuffer.wrap("error=Invalid command".getBytes()));
                 client.close();
             }
         } else {
-            System.out.println("Invalid arguments");
-            client.write(ByteBuffer.wrap("Invalid arguments".getBytes()));
+            client.write(ByteBuffer.wrap("error=Invalid arguments".getBytes()));
             client.close();
         }
     }
 
-    private static boolean verifyUserSignature(PublicKey key, String command, String signature) {
+    private static boolean verifyUserSignature(PublicKey key,
+                                               String command,
+                                               String signature) {
         SignatureVerifier signatureVerifier = new SignatureVerifier(key);
         signatureVerifier.addData(command);
 
         return signatureVerifier.verify(signature);
+    }
+
+    private static boolean verifyUserSignature(PublicKey key,
+                                               String command,
+                                               String signature,
+                                               String destinationKey,
+                                               String guid,
+                                               String amount) {
+
+        SignatureVerifier signatureVerifier = new SignatureVerifier(key);
+        signatureVerifier.addData(command)
+                .addData(amount)
+                .addData(destinationKey)
+                .addData(guid);
+
+        return signatureVerifier.verify(signature);
+    }
+
+    private static String generateSignature(PrivateKey privateKey, String data) {
+        SignatureBuilder signatureBuilder = new SignatureBuilder(privateKey);
+        signatureBuilder.addData(data);
+
+        return signatureBuilder.sign();
     }
 
     private static boolean isRequestArgumentsValid(Map<String, String> map) {
@@ -182,7 +214,8 @@ public class App {
 
             if (map.get("command").equals(Command.TRANSFER.name())) {
                 return map.containsKey("destinationKey")
-                        && map.containsKey("amount");
+                        && map.containsKey("amount")
+                        && map.containsKey("guid");
             } else {
                 return true;
             }
@@ -194,6 +227,15 @@ public class App {
     private static boolean isMapArgumentsValid(Map<String, String> map) {
         return map.containsKey("nodename")
                 && map.containsKey("port");
+    }
+
+    private static String generateBody(String signature, String data) {
+        final String encodedData = new String(Base64.getEncoder().encode(data.getBytes()));
+
+        return "payload="
+                .concat(encodedData)
+                .concat(",signature=")
+                .concat(signature);
     }
 
 }

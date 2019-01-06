@@ -1,3 +1,4 @@
+import security.SignatureVerifier;
 import util.ArgumentParser;
 import model.Command;
 import model.KeyHolder;
@@ -15,8 +16,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.UUID;
 
 public class App {
 
@@ -59,14 +62,15 @@ public class App {
 
                     final URL userKeyResource = App.getResource(username, ".pfx");
                     if (userKeyResource != null) {
-                        final KeyHolder userKeys = App.getUserKey(username, userPassword, userKeyResource);
-                        if (userKeys != null) {
-                            final String nodeName = map.get("nodename");
-                            final ServerNode node = Nodes.getServerNode(nodeName);
+                        final String nodeName = map.get("nodename");
+                        final ServerNode node = Nodes.getServerNode(nodeName);
 
-                            if (node != null) {
-                                //final URL nodeCertificateResource = App.getResource(nodeName, ".crt");
+                        if (node != null) {
+                            final URL nodeCertificateResource = App.getResource(nodeName, ".crt");
+                            final KeyHolder keyHolder = App
+                                    .getKeys(username, userPassword, userKeyResource, nodeCertificateResource);
 
+                            if (keyHolder != null) {
                                 InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
                                 SocketChannel client = SocketChannel.open(nodeAddress);
 
@@ -74,40 +78,37 @@ public class App {
                                     ByteBuffer buffer = ByteBuffer.allocate(1024);
                                     StringBuilder requestBuilder = new StringBuilder();
 
-                                    final SignatureBuilder signatureBuilder = new SignatureBuilder(userKeys.getPrivateKey());
+                                    final SignatureBuilder signatureBuilder = new SignatureBuilder(keyHolder.getPrivateKey());
                                     signatureBuilder.addData(userCommand.name());
 
-                                    requestBuilder.append("signature=")
-                                            .append(signatureBuilder.sign())
-                                            .append(",key=").append(KeyLoader.encodePublicKey(userKeys.getPublicKey()))
+                                    requestBuilder.append("key=").append(KeyLoader.encodePublicKey(keyHolder.getPublicKey()))
                                             .append(",command=").append(userCommand.name());
 
                                     if (userCommand.equals(Command.TRANSFER)) {
-                                        requestBuilder.append(",amount=").append(amount)
-                                                .append(",destinationKey=").append(destinationKey);
+                                        final String amountString = String.valueOf(amount);
+                                        final String guid = UUID.randomUUID().toString();
+
+                                        signatureBuilder.addData(amountString)
+                                                .addData(destinationKey)
+                                                .addData(guid);
+
+                                        requestBuilder.append(",amount=").append(amountString)
+                                                .append(",destinationKey=").append(destinationKey)
+                                                .append(",guid=").append(guid);
                                     }
+
+                                    requestBuilder.append(",signature=")
+                                            .append(signatureBuilder.sign());
 
                                     client.write(ByteBuffer.wrap(requestBuilder.toString().getBytes()));
 
-                                    int bytesRead = client.read(buffer);
-                                    if (bytesRead > 0) {
-                                        byte[] byteArray = new byte[bytesRead];
-                                        buffer.flip();
-                                        buffer.get(byteArray);
-
-                                        // TODO response verification via .crt
-
-                                        String response = new String(buffer.array()).trim();
-                                        System.out.println(response);
-                                    }
-
-                                    client.close();
+                                    App.processServerResponse(client, buffer, keyHolder);
                                 }
                             } else {
-                                throw new Exception("Nodes name doesn't exists.");
+                                throw new Exception("Password is incorrect.");
                             }
                         } else {
-                            throw new Exception("Password is incorrect.");
+                            throw new Exception("Nodes name doesn't exists.");
                         }
                     } else {
                         throw new Exception("Username is incorrect.");
@@ -124,21 +125,63 @@ public class App {
         }
     }
 
+    private static void processServerResponse(SocketChannel client, ByteBuffer buffer, KeyHolder keyHolder) {
+        try {
+            int bytesRead = client.read(buffer);
+            if (bytesRead > 0) {
+                byte[] byteArray = new byte[bytesRead];
+                buffer.flip();
+                buffer.get(byteArray);
+
+                String response = new String(buffer.array()).trim();
+                Map<String, String> responseMap = ArgumentParser
+                        .convertArgsToMap(response.split(","), "=");
+
+                final boolean containsError = responseMap.containsKey("error");
+
+                if (containsError || responseMap.isEmpty()) {
+                    final String errorMessage = containsError
+                            ? responseMap.get("error")
+                            : "Unexpected error between server and client.";
+
+                    System.out.println(errorMessage);
+                } else {
+                    final String payloadEncoded = responseMap.get("payload");
+                    final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
+                    final String signature = responseMap.get("signature");
+
+                    if (App.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)) {
+                        System.out.println(payload);
+                    } else {
+                        System.out.println("Invalid signature from the server.");
+                    }
+                }
+            }
+
+            client.close();
+        } catch (Exception e) {
+            System.out.println(e.toString());
+            System.exit(-1);
+        }
+    }
+
     private static boolean isMapValid(Map<String, String> map) {
         return map.containsKey("username")
                 && map.containsKey("nodename")
                 && map.containsKey("command");
     }
 
-    private static KeyHolder getUserKey(String name, String password, URL url) {
+    private static KeyHolder getKeys(String name, String password, URL userResource, URL nodeResource) {
 
         try {
-            Path path = Paths.get(url.toURI());
+            final Path userPath = Paths.get(userResource.toURI());
+            final Path nodePath = Paths.get(nodeResource.toURI());
 
-            PublicKey publicKey = KeyLoader.loadPublicKey(path, name, password);
-            PrivateKey privateKey = KeyLoader.loadPrivateKey(path, name, password, password);
+            final PublicKey publicKey = KeyLoader.loadPublicKey(userPath, name, password);
+            final PrivateKey privateKey = KeyLoader.loadPrivateKey(userPath, name, password, password);
+            final PublicKey nodePublicKey = KeyLoader.loadPublicKey(nodePath);
 
-            return new KeyHolder(publicKey, privateKey);
+            return new KeyHolder(publicKey, privateKey, nodePublicKey);
         } catch (Exception e) {
             System.out.println(e.toString());
         }
@@ -148,5 +191,14 @@ public class App {
 
     private static URL getResource(String name, String extension) {
         return App.class.getResource(name.concat(extension));
+    }
+
+    private static boolean verifyNodeSignature(PublicKey nodePublicKey,
+                                               String payload,
+                                               String signature) {
+        SignatureVerifier signatureVerifier = new SignatureVerifier(nodePublicKey);
+        signatureVerifier.addData(payload);
+
+        return signatureVerifier.verify(signature);
     }
 }
