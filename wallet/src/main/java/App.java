@@ -37,10 +37,25 @@ public class App {
 
                     System.out.println("Hi "
                             .concat(username)
-                            .concat(", \n Kindly input your password: \n"));
+                            .concat(", \nKindly input your password: "));
 
                     final Scanner scanner = new Scanner(System.in);
                     final String userPassword = scanner.nextLine();
+
+                    float amount = 0;
+                    String destinationKey = null;
+
+                    if (userCommand.equals(Command.TRANSFER)) {
+                        System.out.println("Insert the amount, followed by the Base64 encoded public key: ");
+                        final String[] data = scanner.nextLine().split(" ");
+
+                        amount = Float.parseFloat(data[0]);
+                        destinationKey = data[1];
+
+                        if (amount == 0 || destinationKey.isEmpty()) {
+                            throw new Exception("Invalid data.");
+                        }
+                    }
 
                     final URL userKeyResource = App.getResource(username, ".pfx");
                     if (userKeyResource != null) {
@@ -56,7 +71,7 @@ public class App {
                                 SocketChannel client = SocketChannel.open(nodeAddress);
 
                                 if (client.isConnected()) {
-                                    ByteBuffer buffer = ByteBuffer.allocate(2048);
+                                    ByteBuffer buffer = ByteBuffer.allocate(1024);
                                     StringBuilder requestBuilder = new StringBuilder();
 
                                     final SignatureBuilder signatureBuilder = new SignatureBuilder(userKeys.getPrivateKey());
@@ -68,7 +83,8 @@ public class App {
                                             .append(",command=").append(userCommand.name());
 
                                     if (userCommand.equals(Command.TRANSFER)) {
-
+                                        requestBuilder.append(",amount=").append(amount)
+                                                .append(",destinationKey=").append(destinationKey);
                                     }
 
                                     client.write(ByteBuffer.wrap(requestBuilder.toString().getBytes()));
@@ -78,6 +94,8 @@ public class App {
                                         byte[] byteArray = new byte[bytesRead];
                                         buffer.flip();
                                         buffer.get(byteArray);
+
+                                        // TODO response verification via .crt
 
                                         String response = new String(buffer.array()).trim();
                                         System.out.println(response);

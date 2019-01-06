@@ -1,6 +1,5 @@
 import exception.ArgumentsNotFoundException;
 import model.*;
-import security.SignatureBuilder;
 import security.SignatureVerifier;
 import util.ArgumentParser;
 import security.KeyLoader;
@@ -20,8 +19,6 @@ import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.*;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.stream.Collectors;
 
 public class App {
 
@@ -52,7 +49,6 @@ public class App {
                     serverSocketChannel.configureBlocking(false);
                     serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-                    // 1 Byte -> 1 char
                     final ByteBuffer buffer = ByteBuffer.allocate(1048);
 
                     // TODO: Connect with other nodes, if it fails it must reconnect later on
@@ -143,14 +139,17 @@ public class App {
 
                 if (userCommand.equals(Command.TRANSFER)) {
 
+                    // TODO: Transfer process
                 } else if (userCommand.equals(Command.HISTORY)) {
                     String history = Ledger.getUserHistoryAsString(nodeName, base64PublicKey);
 
+                    // TODO: sign response
                     client.write(ByteBuffer.wrap(history.getBytes()));
                     client.close();
                 } else if (userCommand.equals(Command.BALANCE)) {
                     String balance = Ledger.getUserBalance(nodeName, base64PublicKey);
 
+                    // TODO: sign response
                     client.write(ByteBuffer.wrap(balance.getBytes()));
                     client.close();
                 } else {
@@ -182,7 +181,8 @@ public class App {
                 && map.containsKey("command")) {
 
             if (map.get("command").equals(Command.TRANSFER.name())) {
-                return true;
+                return map.containsKey("destinationKey")
+                        && map.containsKey("amount");
             } else {
                 return true;
             }
