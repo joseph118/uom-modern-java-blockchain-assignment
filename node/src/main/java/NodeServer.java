@@ -65,9 +65,19 @@ public class NodeServer {
                         registerClient(key);
 
                     } else if (key.isValid() && key.isConnectable()) {
-                        // a connection was established with a remote server.
-                        // TODO process connection with node
-                        connections++;
+                        SocketChannel nodeClient = (SocketChannel) key.channel();
+                        try {
+                            if (nodeClient.finishConnect()) {
+                                connections++;
+
+                                ServerNode serverNode = (ServerNode) key.attachment();
+                                System.out.println(serverNode.toString());
+
+                                nodeClient.close();
+                            }
+                        } catch (Exception e) {
+                            System.out.println("failed...");
+                        }
                     } else if (key.isValid() && key.isWritable()) {
                         // a channel is ready for writing
                         if (key.attachment() != null) {
@@ -75,7 +85,13 @@ public class NodeServer {
                         }
                     } else if (key.isValid() && key.isReadable()) {
                         // a channel is ready for reading
-                        processRequest(key);
+
+                        if (key.attachment() != null) {
+                            ServerNode serverNode = (ServerNode) key.attachment();
+                            System.out.println(serverNode.toString());
+                        } else {
+                            processRequest(key);
+                        }
                     }
                     iterator.remove();
                 }
@@ -210,7 +226,7 @@ public class NodeServer {
                     channel.configureBlocking(false);
                     channel.connect(
                             new InetSocketAddress(serverNode.getIp(), serverNode.getPort()));
-                    channel.register(selector, SelectionKey.OP_CONNECT);
+                    channel.register(selector, SelectionKey.OP_CONNECT, serverNode);
                 } catch (IOException e) {
                     System.out.println(e.toString());
                     System.out.println("Error when connecting with ".concat(serverNode.toString()));
