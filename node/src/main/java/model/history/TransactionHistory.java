@@ -1,4 +1,4 @@
-package model;
+package model.history;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -50,8 +50,7 @@ public class TransactionHistory {
         return recipientKey;
     }
 
-    @Override
-    public String toString() {
+    public String getTransactionLine() {
         // Display the opposite key for the user
         String secondParty = drCrIndicator.equals(DrCrIndicator.DR)
                 ? senderKey

@@ -1,18 +1,18 @@
-package model;
+package model.history;
 
-public class HistoryBuffer {
-    private final String lines;
+public class HistoryLine {
+    private String transactionList;
     private final float balance;
     private final String lastTimestamp;
 
-    public HistoryBuffer(String lines, float balance, String lastTimestamp) {
-        this.lines = lines;
+    public HistoryLine(String transactionList, float balance, String lastTimestamp) {
+        this.transactionList = transactionList;
         this.balance = balance;
         this.lastTimestamp = lastTimestamp;
     }
 
-    public String getLines() {
-        return lines;
+    public String getTransactionList() {
+        return transactionList;
     }
 
     public float getBalance() {
@@ -23,9 +23,8 @@ public class HistoryBuffer {
         return lastTimestamp;
     }
 
-    @Override
-    public String toString() {
-        return lines.concat(lastTimestamp)
+    public String getTotal() {
+        return transactionList.concat(lastTimestamp)
                 .concat(" BALANCE ")
                 .concat(String.valueOf(balance));
     }

@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.UUID;
 
-public class App {
+public class Wallet {
 
     /**
      *
@@ -33,7 +33,7 @@ public class App {
         try {
             map = ArgumentParser.convertArgsToMap(args, "=");
 
-            if (App.isMapValid(map)) {
+            if (Wallet.isMapValid(map)) {
                 final Command userCommand = Commands.convertToCommand(map.get("command").toUpperCase());
                 if (!userCommand.equals(Command.OTHER)) {
                     final String username = map.get("username");
@@ -60,14 +60,14 @@ public class App {
                         }
                     }
 
-                    final URL userKeyResource = App.getResource(username, ".pfx");
+                    final URL userKeyResource = Wallet.getResource(username, ".pfx");
                     if (userKeyResource != null) {
                         final String nodeName = map.get("nodename");
                         final ServerNode node = Nodes.getServerNode(nodeName);
 
                         if (node != null) {
-                            final URL nodeCertificateResource = App.getResource(nodeName, ".crt");
-                            final KeyHolder keyHolder = App
+                            final URL nodeCertificateResource = Wallet.getResource(nodeName, ".crt");
+                            final KeyHolder keyHolder = Wallet
                                     .getKeys(username, userPassword, userKeyResource, nodeCertificateResource);
 
                             if (keyHolder != null) {
@@ -102,7 +102,7 @@ public class App {
 
                                     client.write(ByteBuffer.wrap(requestBuilder.toString().getBytes()));
 
-                                    App.processServerResponse(client, buffer, keyHolder);
+                                    Wallet.processServerResponse(client, buffer, keyHolder);
                                 }
                             } else {
                                 throw new Exception("Password is incorrect.");
@@ -142,7 +142,7 @@ public class App {
                 if (containsError || responseMap.isEmpty()) {
                     final String errorMessage = containsError
                             ? responseMap.get("error")
-                            : "Unexpected error between server and client.";
+                            : "Unexpected message between server and client.";
 
                     System.out.println(errorMessage);
                 } else {
@@ -150,15 +150,15 @@ public class App {
                     final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
                     final String signature = responseMap.get("signature");
 
-                    if (App.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)) {
+                    if (Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)) {
                         System.out.println(payload);
                     } else {
                         System.out.println("Invalid signature from the server.");
                     }
                 }
-            }
 
-            client.close();
+                client.close();
+            }
         } catch (Exception e) {
             System.out.println(e.toString());
             System.exit(-1);
@@ -190,7 +190,7 @@ public class App {
     }
 
     private static URL getResource(String name, String extension) {
-        return App.class.getResource(name.concat(extension));
+        return Wallet.class.getResource(name.concat(extension));
     }
 
     private static boolean verifyNodeSignature(PublicKey nodePublicKey,

@@ -1,4 +1,8 @@
-package model;
+package model.core;
+
+import model.balance.Balance;
+import model.history.HistoryLine;
+import model.history.TransactionHistory;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -38,50 +42,50 @@ public class Ledger {
 
         return transactionHistories.parallelStream()
                 .reduce(
-                        new BalanceBuffer(0,0, "", 0),
-                        (balanceBuffer, transactionHistory) -> {
+                        new Balance(0,0, "", 0),
+                        (balance, transactionHistory) -> {
                             final float crValue;
                             final float drValue;
 
                             if (transactionHistory.getDrCrIndicator().equals(TransactionHistory.DrCrIndicator.DR)){
-                                drValue = transactionHistory.getTransactionAmount() + balanceBuffer.getDrValue();
-                                crValue = balanceBuffer.getCrValue();
+                                drValue = transactionHistory.getTransactionAmount() + balance.getDrValue();
+                                crValue = balance.getCrValue();
                             } else {
-                                drValue = balanceBuffer.getDrValue();
-                                crValue = transactionHistory.getTransactionAmount() + balanceBuffer.getCrValue();
+                                drValue = balance.getDrValue();
+                                crValue = transactionHistory.getTransactionAmount() + balance.getCrValue();
                             }
 
                             final String timestamp;
                             final long longTimestamp;
 
-                            if (balanceBuffer.getLongTimestamp() > transactionHistory.getTimestamp()) {
-                                timestamp = balanceBuffer.getTimestamp();
-                                longTimestamp = balanceBuffer.getLongTimestamp();
+                            if (balance.getLongTimestamp() > transactionHistory.getTimestamp()) {
+                                timestamp = balance.getTimestamp();
+                                longTimestamp = balance.getLongTimestamp();
                             } else {
                                 timestamp = transactionHistory.getTimestampAsString();
                                 longTimestamp = transactionHistory.getTimestamp();
                             }
 
-                            return new BalanceBuffer(drValue, crValue, timestamp, longTimestamp);
-                        }, (balanceBuffer, balanceBuffer2) -> {
+                            return new Balance(drValue, crValue, timestamp, longTimestamp);
+                        }, (balance1, balance2) -> {
                             final String timestamp;
                             final long longTimestamp;
 
-                            if (balanceBuffer.getLongTimestamp() > balanceBuffer2.getLongTimestamp()) {
-                                timestamp = balanceBuffer.getTimestamp();
-                                longTimestamp = balanceBuffer.getLongTimestamp();
+                            if (balance1.getLongTimestamp() > balance2.getLongTimestamp()) {
+                                timestamp = balance1.getTimestamp();
+                                longTimestamp = balance1.getLongTimestamp();
                             } else {
-                                timestamp = balanceBuffer2.getTimestamp();
-                                longTimestamp = balanceBuffer2.getLongTimestamp();
+                                timestamp = balance2.getTimestamp();
+                                longTimestamp = balance2.getLongTimestamp();
                             }
 
-                            return new BalanceBuffer(
-                                balanceBuffer.getDrValue() + balanceBuffer2.getDrValue(),
-                                balanceBuffer.getCrValue() + balanceBuffer2.getCrValue(),
+                            return new Balance(
+                                balance1.getDrValue() + balance2.getDrValue(),
+                                balance1.getCrValue() + balance2.getCrValue(),
                                     timestamp,
                                     longTimestamp);
                         }
-                        ).toString();
+                        ).getBalance();
     }
 
     public static List<Transaction> getTransactions(String nodeName) {
@@ -127,25 +131,25 @@ public class Ledger {
         return transactionHistories.parallelStream()
                 .sorted(Comparator.comparingLong(TransactionHistory::getTimestamp))
                 .reduce(
-                    new HistoryBuffer("", 0, ""),
-                    (historyBuffer, transactionHistory) -> {
+                    new HistoryLine("", 0, ""),
+                    (historyLine, transactionHistory) -> {
                         int a = transactionHistory.getDrCrIndicator().equals(TransactionHistory.DrCrIndicator.DR)
                                 ? 1 : -1;
 
-                        float balance = historyBuffer.getBalance() + (transactionHistory.getTransactionAmount() * a);
+                        float balance = historyLine.getBalance() + (transactionHistory.getTransactionAmount() * a);
 
-                        return new HistoryBuffer(
-                                historyBuffer.getLines().concat(transactionHistory.toString()),
+                        return new HistoryLine(
+                                historyLine.getTransactionList().concat(transactionHistory.getTransactionLine()),
                                 balance,
                                 transactionHistory.getTimestampAsString());
                     },
-                    (historyBuffer, historyBuffer2) -> {
-                        return new HistoryBuffer(
-                                historyBuffer.getLines().concat(historyBuffer2.getLines()),
-                        historyBuffer.getBalance() + historyBuffer2.getBalance(),
-                                historyBuffer2.getLastTimestamp());
+                    (historyLine, historyLine2) -> {
+                        return new HistoryLine(
+                                historyLine.getTransactionList().concat(historyLine2.getTransactionList()),
+                        historyLine.getBalance() + historyLine2.getBalance(),
+                                historyLine2.getLastTimestamp());
                     }
-                ).toString();
+                ).getTotal();
     }
 
     private static Transaction mapToTransaction(String[] strings) {

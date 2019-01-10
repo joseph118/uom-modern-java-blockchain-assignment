@@ -1,5 +1,5 @@
 package model;
 
 public enum Command {
-    TRANSFER, BALANCE, HISTORY, OTHER
+    TRANSFER, BALANCE, HISTORY, OTHER, CONNECT
 }
