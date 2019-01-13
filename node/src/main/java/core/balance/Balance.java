@@ -1,4 +1,4 @@
-package model.balance;
+package core.balance;
 
 public class Balance {
     private final float drValue;

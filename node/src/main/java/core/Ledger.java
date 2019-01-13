@@ -1,8 +1,8 @@
-package model.core;
+package core;
 
-import model.balance.Balance;
-import model.history.HistoryLine;
-import model.history.TransactionHistory;
+import core.balance.Balance;
+import core.history.HistoryLine;
+import core.history.TransactionHistory;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

@@ -1,4 +1,4 @@
-package model.message;
+package core.message;
 
 public class Message {
     private final String message;

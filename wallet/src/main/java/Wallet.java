@@ -114,7 +114,7 @@ public class Wallet {
                         throw new Exception("Username is incorrect.");
                     }
                 } else {
-                    throw new Exception("Command must be one of the following:\n balance\n history\n transfer");
+                    throw new Exception("Command must be one of the following:\n core.balance\n core.history\n transfer");
                 }
             } else {
                 throw new Exception("Arguments 'username', 'nodename', and 'command' are required.");
@@ -142,7 +142,7 @@ public class Wallet {
                 if (containsError || responseMap.isEmpty()) {
                     final String errorMessage = containsError
                             ? responseMap.get("error")
-                            : "Unexpected message between server and client.";
+                            : "Unexpected core.message between server and client.";
 
                     System.out.println(errorMessage);
                 } else {

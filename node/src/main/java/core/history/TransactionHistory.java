@@ -1,4 +1,4 @@
-package model.history;
+package core.history;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -33,9 +33,9 @@ public class TransactionHistory {
     }
 
     public String getTimestampAsString() {
-        return Instant.ofEpochSecond(this.timestamp/1000)
-                .atZone(ZoneId.of("GMT"))
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        return Instant.ofEpochMilli(this.timestamp)
+            .atZone(ZoneId.of("GMT"))
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     public float getTransactionAmount() {

@@ -15,6 +15,8 @@ public class Commands {
                 return Command.HISTORY;
             case "TRANSFER":
                 return Command.TRANSFER;
+            case "CONNECT":
+                return Command.CONNECT;
         }
 
         return Command.OTHER;
