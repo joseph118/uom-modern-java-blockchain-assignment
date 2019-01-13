@@ -9,9 +9,11 @@ import model.Command;
 import model.KeyHolder;
 import model.ServerNode;
 import org.apache.log4j.Logger;
+import security.HashBuilder;
 import security.KeyLoader;
 import util.ArgumentParser;
 import util.Commands;
+import util.Conversion;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -260,7 +262,7 @@ public class NodeServer {
     }
 
     private void processTransferRequest(Map<String, String> requestMessage, String command, SocketChannel client) throws IOException {
-        final String destinationKey = requestMessage.get("destinationKey");
+        final String destinationKey = requestMessage.get("destinationkey");
         final String guid = requestMessage.get("guid");
         final String stringAmount = requestMessage.get("amount");
         final String signature = requestMessage.get("signature");
@@ -273,10 +275,18 @@ public class NodeServer {
 
             if (userBalance >= amount) {
                 final String clientLastHash = Ledger.getUserLastTransaction(nodeName, base64PublicKey).getHash();
-                final String RecipientLastHash = Ledger.getUserLastTransaction(nodeName, destinationKey).getHash();
+                final String recipientLastHash = Ledger.getUserLastTransaction(nodeName, destinationKey).getHash();
                 final long timestamp = Instant.now().toEpochMilli();
 
+                String transactionHash = new HashBuilder(clientLastHash)
+                        .addData(recipientLastHash)
+                        .addData(guid)
+                        .addData(Conversion.convertAmountToString(amount))
+                        .addData(signature)
+                        .addData(String.valueOf(timestamp))
+                        .hash();
 
+                client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient funds.", client.getLocalAddress().toString()));
             } else {
                 client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient funds.", client.getLocalAddress().toString()));
             }

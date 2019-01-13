@@ -6,8 +6,10 @@ import model.ServerNode;
 import security.KeyLoader;
 import security.SignatureBuilder;
 import util.Commands;
+import util.Conversion;
 import util.Nodes;
 
+import java.math.RoundingMode;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -16,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.text.DecimalFormat;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Scanner;
@@ -85,7 +88,7 @@ public class Wallet {
                                             .append(",command=").append(userCommand.name());
 
                                     if (userCommand.equals(Command.TRANSFER)) {
-                                        final String amountString = String.valueOf(amount); // TODO format up to 6 decimal places
+                                        final String amountString = Conversion.convertAmountToString(amount);
                                         final String guid = UUID.randomUUID().toString();
 
                                         signatureBuilder.addData(guid)
@@ -93,8 +96,10 @@ public class Wallet {
                                                 .addData(destinationKey)
                                                 .addData(amountString);
 
+                                        System.out.println(amountString);
+
                                         requestBuilder.append(",amount=").append(amountString)
-                                                .append(",destinationKey=").append(destinationKey)
+                                                .append(",destinationkey=").append(destinationKey)
                                                 .append(",guid=").append(guid);
                                     }
 

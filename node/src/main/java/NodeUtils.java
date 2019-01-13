@@ -37,7 +37,7 @@ public class NodeUtils {
                 // Wallet
                 if (map.containsKey("key")) {
                     if (map.get("command").equals(Command.TRANSFER.name())) {
-                        return map.containsKey("destinationKey")
+                        return map.containsKey("destinationkey")
                                 && map.containsKey("amount")
                                 && map.containsKey("guid");
                     } else {
