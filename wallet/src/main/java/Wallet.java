@@ -79,18 +79,19 @@ public class Wallet {
                                     StringBuilder requestBuilder = new StringBuilder();
 
                                     final SignatureBuilder signatureBuilder = new SignatureBuilder(keyHolder.getPrivateKey());
-                                    signatureBuilder.addData(userCommand.name());
+                                    final String encodedPublicKey = KeyLoader.encodePublicKey(keyHolder.getPublicKey());
 
-                                    requestBuilder.append("key=").append(KeyLoader.encodePublicKey(keyHolder.getPublicKey()))
+                                    requestBuilder.append("key=").append(encodedPublicKey)
                                             .append(",command=").append(userCommand.name());
 
                                     if (userCommand.equals(Command.TRANSFER)) {
-                                        final String amountString = String.valueOf(amount);
+                                        final String amountString = String.valueOf(amount); // TODO format up to 6 decimal places
                                         final String guid = UUID.randomUUID().toString();
 
-                                        signatureBuilder.addData(amountString)
+                                        signatureBuilder.addData(guid)
+                                                .addData(encodedPublicKey)
                                                 .addData(destinationKey)
-                                                .addData(guid);
+                                                .addData(amountString);
 
                                         requestBuilder.append(",amount=").append(amountString)
                                                 .append(",destinationKey=").append(destinationKey)

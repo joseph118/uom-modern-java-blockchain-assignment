@@ -247,7 +247,7 @@ public class NodeServer {
         final String base64PublicKey = requestMessage.get("key");
         final PublicKey clientPublicKey = KeyLoader.decodePublicKey(base64PublicKey);
 
-        if (NodeUtils.verifyUserSignature(clientPublicKey, userCommand.name(), signature)) {
+        if (NodeUtils.verifyUserSignature(clientPublicKey, signature)) {
             final String data = (userCommand.equals(Command.HISTORY))
                     ? Ledger.getUserHistoryAsString(nodeName, base64PublicKey)
                     : Ledger.getUserBalance(nodeName, base64PublicKey).getLineBalance();
@@ -267,7 +267,7 @@ public class NodeServer {
         final String base64PublicKey = requestMessage.get("key");
         final PublicKey clientPublicKey = KeyLoader.decodePublicKey(base64PublicKey);
 
-        if (NodeUtils.verifyTransferSignature(clientPublicKey, command, signature, destinationKey, guid, stringAmount)) {
+        if (NodeUtils.verifyTransferSignature(clientPublicKey, base64PublicKey, signature, destinationKey, guid, stringAmount)) {
             final float amount = Float.parseFloat(stringAmount);
             final float userBalance = Ledger.getUserBalance(nodeName, base64PublicKey).calculateBalance();
 

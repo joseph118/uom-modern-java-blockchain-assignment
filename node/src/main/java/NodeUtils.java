@@ -13,17 +13,17 @@ public class NodeUtils {
     }
 
     public static boolean verifyTransferSignature(PublicKey key,
-                                            String command,
+                                            String publicKey,
                                             String signature,
                                             String destinationKey,
                                             String guid,
                                             String amount) {
 
         SignatureVerifier signatureVerifier = new SignatureVerifier(key);
-        signatureVerifier.addData(command)
-                .addData(amount)
+        signatureVerifier.addData(guid)
+                .addData(publicKey)
                 .addData(destinationKey)
-                .addData(guid);
+                .addData(amount);
 
         return signatureVerifier.verify(signature);
     }
@@ -60,10 +60,8 @@ public class NodeUtils {
     }
 
     public static boolean verifyUserSignature(PublicKey key,
-                                               String command,
                                                String signature) {
-        final SignatureVerifier signatureVerifier = new SignatureVerifier(key)
-                .addData(command);
+        final SignatureVerifier signatureVerifier = new SignatureVerifier(key);
 
         return signatureVerifier.verify(signature);
     }
@@ -88,7 +86,7 @@ public class NodeUtils {
                 .concat(signature);
     }
 
-    public static String generateSignature(PrivateKey privateKey, String data) {
+    private static String generateSignature(PrivateKey privateKey, String data) {
         final SignatureBuilder signatureBuilder = new SignatureBuilder(privateKey)
                 .addData(data);
 
