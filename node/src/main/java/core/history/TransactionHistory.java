@@ -14,14 +14,20 @@ public class TransactionHistory {
     private final float transactionAmount;
     private final String senderKey;
     private final String recipientKey;
+    private final String hash;
 
     public TransactionHistory(DrCrIndicator drCrIndicator, long timestamp, float transactionAmount, String senderKey,
-                              String recipientKey) {
+                              String recipientKey, String hash) {
         this.drCrIndicator = drCrIndicator;
         this.timestamp = timestamp;
         this.transactionAmount = transactionAmount;
         this.senderKey = senderKey;
         this.recipientKey = recipientKey;
+        this.hash = hash;
+    }
+
+    public String getHash() {
+        return hash;
     }
 
     public DrCrIndicator getDrCrIndicator() {

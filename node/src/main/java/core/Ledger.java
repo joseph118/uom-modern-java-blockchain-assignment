@@ -37,7 +37,7 @@ public class Ledger {
         return false;
     }
 
-    public static String getUserBalance(String nodeName, String publicKey) {
+    public static Balance getUserBalance(String nodeName, String publicKey) {
         List<TransactionHistory> transactionHistories = getTransactionHistory(nodeName, publicKey);
 
         return transactionHistories.parallelStream()
@@ -85,7 +85,7 @@ public class Ledger {
                                     timestamp,
                                     longTimestamp);
                         }
-                        ).getBalance();
+                        );
     }
 
     public static List<Transaction> getTransactions(String nodeName) {
@@ -123,6 +123,16 @@ public class Ledger {
         }
 
         return new ArrayList<>(0);
+    }
+
+    public static TransactionHistory getUserLastTransaction(String nodeName, String publicKey) {
+        return getTransactionHistory(nodeName, publicKey).parallelStream()
+                .reduce((transactionHistory, transactionHistory2) -> {
+                    return (transactionHistory.getTimestamp() > transactionHistory2.getTimestamp())
+                            ? transactionHistory
+                            : transactionHistory2;
+                }).orElse(null);
+
     }
 
     public static String getUserHistoryAsString(String nodeName, String publicKey) {
@@ -177,6 +187,7 @@ public class Ledger {
                 transaction.getTimestamp(),
                 transaction.getTransactionAmount(),
                 transaction.getSenderPublicKey(),
-                transaction.getRecipientPublicKey());
+                transaction.getRecipientPublicKey(),
+                transaction.getHash());
     }
 }

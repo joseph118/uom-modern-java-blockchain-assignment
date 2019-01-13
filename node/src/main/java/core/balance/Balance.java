@@ -29,7 +29,7 @@ public class Balance {
         return longTimestamp;
     }
 
-    public String getBalance() {
+    public String getLineBalance() {
         final float balance = drValue - crValue;
         final String indicator = balance >= 0 ? "DR" : "CR";
 
@@ -38,5 +38,9 @@ public class Balance {
                 .concat("\n").concat(timestamp)
                 .concat(" TOTAL ").concat(indicator).concat(" ")
                 .concat(String.valueOf(balance));
+    }
+
+    public float calculateBalance() {
+        return drValue - crValue;
     }
 }

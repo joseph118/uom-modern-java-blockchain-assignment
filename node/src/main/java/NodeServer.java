@@ -1,4 +1,6 @@
 import core.Ledger;
+import core.balance.Balance;
+import core.history.TransactionHistory;
 import core.message.ErrorMessage;
 import core.message.NodeMessage;
 import core.message.SuccessMessage;
@@ -20,6 +22,7 @@ import java.nio.channels.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PublicKey;
+import java.time.Instant;
 import java.util.*;
 
 public class NodeServer {
@@ -215,7 +218,6 @@ public class NodeServer {
 
             final String message = NodeUtils.generateNodeMessage(nodeKeys.getPrivateKey(), this.nodeName, currentPhase);
 
-
             if (currentPhase.equals("ok")) {
                 updateNodeConnection(node.getName(), true, client);
                 client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, node, true));
@@ -248,7 +250,7 @@ public class NodeServer {
         if (NodeUtils.verifyUserSignature(clientPublicKey, userCommand.name(), signature)) {
             final String data = (userCommand.equals(Command.HISTORY))
                     ? Ledger.getUserHistoryAsString(nodeName, base64PublicKey)
-                    : Ledger.getUserBalance(nodeName, base64PublicKey);
+                    : Ledger.getUserBalance(nodeName, base64PublicKey).getLineBalance();
 
             final String responseData = NodeUtils.generateWalletMessage(nodeKeys.getPrivateKey(), data);
             client.register(selector, SelectionKey.OP_WRITE, new SuccessMessage(responseData, "Wallet - ".concat(client.getLocalAddress().toString()), true));
@@ -264,10 +266,20 @@ public class NodeServer {
         final String signature = requestMessage.get("signature");
         final String base64PublicKey = requestMessage.get("key");
         final PublicKey clientPublicKey = KeyLoader.decodePublicKey(base64PublicKey);
-        final float amount = Float.parseFloat(stringAmount);
 
         if (NodeUtils.verifyTransferSignature(clientPublicKey, command, signature, destinationKey, guid, stringAmount)) {
-            // TODO: transfer....
+            final float amount = Float.parseFloat(stringAmount);
+            final float userBalance = Ledger.getUserBalance(nodeName, base64PublicKey).calculateBalance();
+
+            if (userBalance >= amount) {
+                final String clientLastHash = Ledger.getUserLastTransaction(nodeName, base64PublicKey).getHash();
+                final String RecipientLastHash = Ledger.getUserLastTransaction(nodeName, destinationKey).getHash();
+                final long timestamp = Instant.now().toEpochMilli();
+
+
+            } else {
+                client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient funds.", client.getLocalAddress().toString()));
+            }
         } else {
             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid signature", client.getLocalAddress().toString()));
         }
@@ -377,7 +389,7 @@ public class NodeServer {
     }
 
     private void updateNodeConnection(String nodeName, boolean isConnected, SocketChannel client) {
-        Optional<ServerNode> serverNodeOptional = this.serverNodes.stream()
+        Optional<ServerNode> serverNodeOptional = this.serverNodes.parallelStream()
                 .filter(serverNode -> serverNode.getName().equals(nodeName))
                 .findFirst();
 
@@ -391,7 +403,7 @@ public class NodeServer {
     }
 
     private ServerNode getNodeByName(String name) {
-        return this.serverNodes.stream()
+        return this.serverNodes.parallelStream()
                 .filter(serverNode -> serverNode.getName().equals(name))
                 .findFirst()
                 .orElse(null);
