@@ -17,6 +17,10 @@ public class Commands {
                 return Command.TRANSFER;
             case "CONNECT":
                 return Command.CONNECT;
+            case "VERIFY":
+                return Command.VERIFY;
+            case "VERIFY_OK":
+                return Command.VERIFY_OK;
         }
 
         return Command.OTHER;

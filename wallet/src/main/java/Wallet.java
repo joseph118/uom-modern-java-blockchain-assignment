@@ -9,7 +9,6 @@ import util.Commands;
 import util.Conversion;
 import util.Nodes;
 
-import java.math.RoundingMode;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -18,7 +17,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.text.DecimalFormat;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Scanner;
@@ -95,8 +93,6 @@ public class Wallet {
                                                 .addData(encodedPublicKey)
                                                 .addData(destinationKey)
                                                 .addData(amountString);
-
-                                        System.out.println(amountString);
 
                                         requestBuilder.append(",amount=").append(amountString)
                                                 .append(",destinationkey=").append(destinationKey)

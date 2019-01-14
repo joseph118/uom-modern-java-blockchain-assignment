@@ -1,6 +1,4 @@
 import core.Ledger;
-import core.balance.Balance;
-import core.history.TransactionHistory;
 import core.message.ErrorMessage;
 import core.message.NodeMessage;
 import core.message.SuccessMessage;
@@ -34,7 +32,6 @@ public class NodeServer {
     private final String nodeName;
     private final KeyHolder nodeKeys;
     private boolean running;
-
 
     public NodeServer(Selector selector, List<ServerNode> serverNodes, String nodeName, KeyHolder nodeKeys) {
         this.selector = selector;
@@ -152,6 +149,12 @@ public class NodeServer {
                     logger.info("Node connection request received from ".concat(requestMessage.get("nodename")));
                     connectToNode(key, requestMessage, userCommand);
 
+                } else if (userCommand.equals(Command.VERIFY)) {
+                    logger.info("Node verify request received from ".concat(requestMessage.get("nodename")));
+                    verifyTransaction(key, requestMessage);
+
+                } else if (userCommand.equals(Command.VERIFY_OK)) {
+                    // TODO
                 } else {
                     logger.info("Incorrect request from ".concat(client.getLocalAddress().toString()));
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid command", client.getLocalAddress().toString()));
@@ -170,6 +173,53 @@ public class NodeServer {
 
                 logger.info("Node: ".concat(serverNode.getName().concat(", has been disconnected.")));
             }
+        }
+    }
+
+    private void verifyTransaction(SelectionKey key, Map<String, String> requestMessage) throws IOException {
+        final String nodeName = requestMessage.get("nodeName");
+        final String guid = requestMessage.get("guid");
+        final String senderKey = requestMessage.get("senderkey");
+        final String receiverKey = requestMessage.get("receiverkey");
+        final String amountString = requestMessage.get("amount");
+        final String senderSignature = requestMessage.get("sendersignature");
+        final String timestamp = requestMessage.get("timestamp");
+        final String hash = requestMessage.get("hash");
+        final String signature = requestMessage.get("signature");
+
+        Path path = getNodeCertificate(nodeName);
+
+        if (path != null) {
+            final PublicKey nodePublicKey = KeyLoader.loadPublicKey(path);
+
+            if (NodeUtils.verifyNodeTransferSignature(nodePublicKey, signature, guid, senderKey, receiverKey, amountString,
+                    senderSignature, timestamp, hash, nodeName)) {
+
+                final float amount = Float.parseFloat(amountString);
+                final float userBalance = Ledger.getUserBalance(nodeName, senderKey).calculateBalance();
+
+                if (userBalance >= amount) {
+                    final String newHash = generateTransactionHash(senderKey, receiverKey, guid, amountString, signature, timestamp, nodeName);
+
+                    if (hash.equals(newHash)) {
+                        final String message = NodeUtils.generateNodeVerifyMessage(nodeKeys.getPrivateKey(), Command.VERIFY_OK.name(), guid,
+                                senderKey, receiverKey, amountString, senderSignature, timestamp, hash, this.nodeName);
+                        SocketChannel nodeClient = (SocketChannel) key.channel();
+
+                        final ServerNode serverNode = (ServerNode) key.attachment();
+                        nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                    } else {
+                        key.cancel(); // TODO
+                        key.channel().close();// TODO
+                    }
+                }
+            } else {
+                key.cancel(); // TODO
+                key.channel().close(); // TODO
+            }
+        } else {
+            key.cancel(); // TODO
+            key.channel().close(); // TODO
         }
     }
 
@@ -193,12 +243,8 @@ public class NodeServer {
         }
     }
 
-    private void performServerHandshake(SelectionKey key, Map<String, String> requestMessage, Command userCommand, String phase, ServerNode node) throws IOException {
-        final SocketChannel client = (SocketChannel) key.channel();
-        final String signature = requestMessage.get("signature");
-
-        System.out.println(node);
-        final URL nodeCertificate = NodeServer.class.getResource(node.getName().concat(".crt"));
+    private Path getNodeCertificate(String nodeName) {
+        final URL nodeCertificate = NodeServer.class.getResource(nodeName.concat(".crt"));
         Path path;
 
         try {
@@ -206,6 +252,15 @@ public class NodeServer {
         } catch (URISyntaxException ex) {
             path = null;
         }
+
+        return path;
+    }
+
+    private void performServerHandshake(SelectionKey key, Map<String, String> requestMessage, Command userCommand, String phase, ServerNode node) throws IOException {
+        final SocketChannel client = (SocketChannel) key.channel();
+        final String signature = requestMessage.get("signature");
+
+        Path path = getNodeCertificate(node.getName());
 
         if (path != null
                 && NodeUtils.verifyNodeSignature(KeyLoader.loadPublicKey(path), userCommand.name(), node.getName(), signature, phase)) {
@@ -261,6 +316,20 @@ public class NodeServer {
         }
     }
 
+    private String generateTransactionHash(String senderKey, String receiverKey, String guid, String amount, String signature, String timestamp, String nodeName) {
+        final String senderLastHash = Ledger.getUserLastTransaction(this.nodeName, senderKey).getHash();
+        String receiverLastHash = Ledger.getUserLastTransaction(nodeName, receiverKey).getHash();
+
+        return new HashBuilder(senderLastHash)
+                .addData(receiverLastHash)
+                .addData(guid)
+                .addData(amount)
+                .addData(signature)
+                .addData(timestamp)
+                .addData(nodeName)
+                .hash();
+    }
+
     private void processTransferRequest(Map<String, String> requestMessage, String command, SocketChannel client) throws IOException {
         final String destinationKey = requestMessage.get("destinationkey");
         final String guid = requestMessage.get("guid");
@@ -274,19 +343,25 @@ public class NodeServer {
             final float userBalance = Ledger.getUserBalance(nodeName, base64PublicKey).calculateBalance();
 
             if (userBalance >= amount) {
-                final String clientLastHash = Ledger.getUserLastTransaction(nodeName, base64PublicKey).getHash();
-                final String recipientLastHash = Ledger.getUserLastTransaction(nodeName, destinationKey).getHash();
                 final long timestamp = Instant.now().toEpochMilli();
+                final String transactionHash = generateTransactionHash(base64PublicKey,
+                        destinationKey,
+                        guid,
+                        Conversion.convertAmountToString(amount),
+                        signature,
+                        String.valueOf(timestamp),
+                        nodeName);
 
-                String transactionHash = new HashBuilder(clientLastHash)
-                        .addData(recipientLastHash)
-                        .addData(guid)
-                        .addData(Conversion.convertAmountToString(amount))
-                        .addData(signature)
-                        .addData(String.valueOf(timestamp))
-                        .hash();
-
-                client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient funds.", client.getLocalAddress().toString()));
+                if (getConnectedNodes() >= 2) {
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ex) {
+                        logger.error(ex);
+                    }
+                    // TODO
+                } else {
+                    client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Unable to fulfill your request. Please try again later.", client.getLocalAddress().toString()));
+                }
             } else {
                 client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient funds.", client.getLocalAddress().toString()));
             }
@@ -356,11 +431,6 @@ public class NodeServer {
 
             key.cancel();
         }
-//        else {
-//            // Transfer TODO
-//            key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-//            key.attachment(new ServerNode(receiverName, client.getRemoteAddress()));
-//        }
     }
 
     private void writeToClient(String message, SocketChannel client) throws IOException {
