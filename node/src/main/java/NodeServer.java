@@ -267,8 +267,11 @@ public class NodeServer {
                         }
                     } else {
                         // Verify ok
-                        verificationMap.get(verifyRequest.getSenderKey()).addSignatureAndIncrement(verifyRequest
-                        .getSenderSignature());
+                        final String signature = verifyRequest.getNodeName()
+                                .concat(":").concat(verifyRequest.getSignature());
+
+                        verificationMap.get(verifyRequest.getSenderKey())
+                                .addSignatureAndIncrement(signature);
 
                         nodeClient.register(selector, SelectionKey.OP_READ, serverNode);
                     }
@@ -391,7 +394,7 @@ public class NodeServer {
         final String base64PublicKey = requestMessage.get("key");
         final PublicKey clientPublicKey = KeyLoader.decodePublicKey(base64PublicKey);
 
-        if (NodeUtils.verifyUserSignature(clientPublicKey, signature)) {
+        if (NodeUtils.verifyWalletSignature(clientPublicKey, signature)) {
             final String data = (userCommand.equals(Command.HISTORY))
                     ? Ledger.getUserHistoryAsString(nodeName, base64PublicKey)
                     : Ledger.getUserBalance(nodeName, base64PublicKey).getLineBalance();
@@ -441,7 +444,7 @@ public class NodeServer {
 
                 List<ServerNode> serverNodes = getConnectedNodes();
                 if (serverNodes.size() >= 2) {
-
+                    String timestampString = String.valueOf(timestamp);
                     // Send request to nodes
                     sendVerificationRequests(serverNodes,
                             serverNodes.size(),
@@ -451,13 +454,47 @@ public class NodeServer {
                             destinationKey,
                             stringAmount,
                             signature,
-                            String.valueOf(timestamp),
+                            timestampString,
                             transactionHash);
                     if (waitForVerificationProcess(base64PublicKey)) {
+                        DataHolder dataHolder = verificationMap.get(base64PublicKey);
+                        List<String> signatures = dataHolder.getSignatures();
 
-                        // TODO
+                        if (signatures.size() >= 2) {
+                            final String signatureOne = nodeName.concat(":").concat(NodeUtils.generateNodeTransferSignature(
+                                    nodeKeys.getPrivateKey(),
+                                    guid,
+                                    base64PublicKey,
+                                    destinationKey,
+                                    stringAmount,
+                                    signature,
+                                    timestampString,
+                                    transactionHash,
+                                    nodeName));
+                            final String signatureTwo = signatures.get(0);
+                            final String signatureThree = signatures.get(1);
+
+                            final String message = NodeUtils.generateWalletTransferMessage(
+                                    nodeKeys.getPrivateKey(),
+                                    guid,
+                                    base64PublicKey,
+                                    destinationKey,
+                                    stringAmount,
+                                    signature,
+                                    timestampString,
+                                    transactionHash,
+                                    nodeName,
+                                    signatureOne,
+                                    signatureTwo,
+                                    signatureThree);
+
+                            client.register(selector, SelectionKey.OP_WRITE,
+                                    new SuccessMessage(message, client.getLocalAddress().toString(), false));
+                        } else {
+                            client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Verification failed", client.getLocalAddress().toString()));
+                        }
                     } else {
-                        // Timeout
+                        client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Node connection timed out.", client.getLocalAddress().toString()));
                     }
                 } else {
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Unable to fulfill your request. Please try again later.", client.getLocalAddress().toString()));

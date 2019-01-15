@@ -71,8 +71,8 @@ public class NodeUtils {
         return signatureVerifier.verify(signature);
     }
 
-    public static boolean verifyUserSignature(PublicKey key,
-                                               String signature) {
+    public static boolean verifyWalletSignature(PublicKey key,
+                                                String signature) {
         final SignatureVerifier signatureVerifier = new SignatureVerifier(key);
 
         return signatureVerifier.verify(signature);
@@ -144,6 +144,64 @@ public class NodeUtils {
         final SignatureBuilder signatureBuilder = new SignatureBuilder(privateKey)
                 .addData(command)
                 .addData(nodeName);
+
+        return signatureBuilder.sign();
+    }
+
+    public static String generateWalletTransferMessage(PrivateKey privateKey,
+                                                       String guid,
+                                                       String senderKey,
+                                                       String receiverKey,
+                                                       String amount,
+                                                       String senderSignature,
+                                                       String timestamp,
+                                                       String hash,
+                                                       String nodeName,
+                                                       String signatureOne,
+                                                       String signatureTwo,
+                                                       String signatureThree) {
+
+        final String signature = generateWalletTransferSignature(privateKey, guid, senderKey, receiverKey, amount, senderSignature, timestamp, hash, nodeName, signatureOne, signatureTwo, signatureThree);
+
+        return "signature=".concat(signature)
+                .concat(",guid=").concat(guid)
+                .concat(",senderkey=").concat(senderKey)
+                .concat(",receiverkey=").concat(receiverKey)
+                .concat(",amount=").concat(amount)
+                .concat(",sendersignature=").concat(senderSignature)
+                .concat(",timestamp=").concat(timestamp)
+                .concat(",hash=").concat(hash)
+                .concat(",nodename=").concat(nodeName)
+                .concat(",signature1=").concat(signatureOne)
+                .concat(",signature2=").concat(signatureTwo)
+                .concat(",signature3=").concat(signatureThree);
+    }
+
+    public static String generateWalletTransferSignature(PrivateKey privateKey,
+                                                         String guid,
+                                                         String senderKey,
+                                                         String receiverKey,
+                                                         String amount,
+                                                         String senderSignature,
+                                                         String timestamp,
+                                                         String hash,
+                                                         String nodeName,
+                                                         String signatureOne,
+                                                         String signatureTwo,
+                                                         String signatureThree) {
+
+        final SignatureBuilder signatureBuilder = new SignatureBuilder(privateKey)
+                .addData(guid)
+                .addData(senderKey)
+                .addData(receiverKey)
+                .addData(amount)
+                .addData(senderSignature)
+                .addData(timestamp)
+                .addData(hash)
+                .addData(nodeName)
+                .addData(signatureOne)
+                .addData(signatureTwo)
+                .addData(signatureThree);
 
         return signatureBuilder.sign();
     }

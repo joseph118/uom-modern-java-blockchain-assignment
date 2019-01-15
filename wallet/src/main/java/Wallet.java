@@ -104,7 +104,7 @@ public class Wallet {
 
                                     client.write(ByteBuffer.wrap(requestBuilder.toString().getBytes()));
 
-                                    Wallet.processServerResponse(client, buffer, keyHolder);
+                                    Wallet.processServerResponse(client, buffer, keyHolder, userCommand);
                                 }
                             } else {
                                 throw new Exception("Password is incorrect.");
@@ -127,7 +127,7 @@ public class Wallet {
         }
     }
 
-    private static void processServerResponse(SocketChannel client, ByteBuffer buffer, KeyHolder keyHolder) {
+    private static void processServerResponse(SocketChannel client, ByteBuffer buffer, KeyHolder keyHolder, Command command) {
         try {
             int bytesRead = client.read(buffer);
             if (bytesRead > 0) {
@@ -148,14 +148,19 @@ public class Wallet {
 
                     System.out.println(errorMessage);
                 } else {
-                    final String payloadEncoded = responseMap.get("payload");
-                    final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
-                    final String signature = responseMap.get("signature");
-
-                    if (Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)) {
-                        System.out.println(payload);
+                    if (command.equals(Command.TRANSFER)) {
+                        // TODO verify the signatures of 3 nodes - this also has to be done on the node...
+                        // send it back to the node
                     } else {
-                        System.out.println("Invalid signature from the server.");
+                        final String payloadEncoded = responseMap.get("payload");
+                        final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
+                        final String signature = responseMap.get("signature");
+
+                        if (Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)) {
+                            System.out.println(payload);
+                        } else {
+                            System.out.println("Invalid signature from the server.");
+                        }
                     }
                 }
 
