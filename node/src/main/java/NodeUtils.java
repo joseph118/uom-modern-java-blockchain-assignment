@@ -44,6 +44,8 @@ public class NodeUtils {
                         && map.containsKey("sendersignature")
                         && map.containsKey("timestamp")
                         && map.containsKey("hash");
+            } else if (map.get("command").equals(Command.VERIFY_ERR.name())) {
+                return map.containsKey("nodename");
             } else {
                 // Wallet
                 if (map.containsKey("key")) {
@@ -61,11 +63,10 @@ public class NodeUtils {
         return false;
     }
 
-    public static boolean verifyNodeSignature(PublicKey nodePublicKey, String command, String nodeName, String signature, String phase) {
+    public static boolean verifyNodeSignature(PublicKey nodePublicKey, String command, String nodeName, String signature) {
         final SignatureVerifier signatureVerifier = new SignatureVerifier(nodePublicKey)
                 .addData(command)
-                .addData(nodeName)
-                .addData(phase);
+                .addData(nodeName);
 
         return signatureVerifier.verify(signature);
     }
@@ -76,6 +77,7 @@ public class NodeUtils {
 
         return signatureVerifier.verify(signature);
     }
+
 
     public static String generateNodeVerifyMessage(PrivateKey privateKey,
                                                    String command,
@@ -102,14 +104,22 @@ public class NodeUtils {
                 .concat(",hash=").concat(hash);
     }
 
-    public static String generateNodeMessage(PrivateKey privateKey, String nodeName, String phase) {
+    public static String generateNodeHandshakeMessage(PrivateKey privateKey, String nodeName, String phase) {
         final String command = Command.CONNECT.name();
-        final String signature = generateNodeSignature(privateKey, command, nodeName, phase);
+        final String signature = generateNodeSignature(privateKey, command, nodeName);
 
         return "command=".concat(command)
                 .concat(",nodename=").concat(nodeName)
                 .concat(",signature=").concat(signature)
                 .concat(",phase=").concat(phase);
+    }
+
+    public static String generateNodeVerifyErrorMessage(PrivateKey privateKey, String nodeName, Command command) {
+        final String signature = generateNodeSignature(privateKey, command.name(), nodeName);
+
+        return "command=".concat(command.name())
+                .concat(",nodename=").concat(nodeName)
+                .concat(",signature=").concat(signature);
     }
 
 
@@ -130,11 +140,10 @@ public class NodeUtils {
         return signatureBuilder.sign();
     }
 
-    public static String generateNodeSignature(PrivateKey privateKey, String command, String nodeName, String phase) {
+    public static String generateNodeSignature(PrivateKey privateKey, String command, String nodeName) {
         final SignatureBuilder signatureBuilder = new SignatureBuilder(privateKey)
                 .addData(command)
-                .addData(nodeName)
-                .addData(phase);
+                .addData(nodeName);
 
         return signatureBuilder.sign();
     }

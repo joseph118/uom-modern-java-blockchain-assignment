@@ -1,11 +1,14 @@
+import core.DataHolder;
 import core.Ledger;
 import core.message.ErrorMessage;
 import core.message.NodeMessage;
 import core.message.SuccessMessage;
+import core.request.VerifyRequest;
 import exception.ArgumentsNotFoundException;
 import model.Command;
 import model.KeyHolder;
 import model.ServerNode;
+import model.ServerNodeVerify;
 import org.apache.log4j.Logger;
 import security.HashBuilder;
 import security.KeyLoader;
@@ -24,6 +27,8 @@ import java.nio.file.Paths;
 import java.security.PublicKey;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class NodeServer {
     final static Logger logger = Logger.getLogger(NodeServer.class);
@@ -31,6 +36,7 @@ public class NodeServer {
     private final List<ServerNode> serverNodes;
     private final String nodeName;
     private final KeyHolder nodeKeys;
+    private final Map<String, DataHolder> verificationMap;
     private boolean running;
 
     public NodeServer(Selector selector, List<ServerNode> serverNodes, String nodeName, KeyHolder nodeKeys) {
@@ -39,6 +45,8 @@ public class NodeServer {
         this.nodeName = nodeName;
         this.nodeKeys = nodeKeys;
         this.running = false;
+
+        this.verificationMap = new ConcurrentHashMap<>();
     }
 
     public void startServer(int portNumber) throws IOException {
@@ -95,7 +103,7 @@ public class NodeServer {
         this.running = running;
     }
 
-    private long getConnectedNodes() {
+    private long getConnectedNodesCount() {
         return this.serverNodes.parallelStream()
                 .filter(ServerNode::isConnected).count();
     }
@@ -111,7 +119,7 @@ public class NodeServer {
 
                 logger.info("Connected to: ".concat(serverNode.toString().concat(", Performing handshake.")));
 
-                final String message = NodeUtils.generateNodeMessage(nodeKeys.getPrivateKey(), nodeName, "handshake_1");
+                final String message = NodeUtils.generateNodeHandshakeMessage(nodeKeys.getPrivateKey(), nodeName, "handshake_1");
                 nodeClient.register(this.selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
             }
         } catch (Exception e) {
@@ -151,10 +159,16 @@ public class NodeServer {
 
                 } else if (userCommand.equals(Command.VERIFY)) {
                     logger.info("Node verify request received from ".concat(requestMessage.get("nodename")));
-                    verifyTransaction(key, requestMessage);
+                    nodeVerifyTransaction(key, requestMessage, Command.VERIFY);
 
                 } else if (userCommand.equals(Command.VERIFY_OK)) {
-                    // TODO
+                    logger.info("Node verify ok received from ".concat(requestMessage.get("nodename")));
+                    nodeVerifyTransaction(key, requestMessage, Command.VERIFY_OK);
+
+                } else if (userCommand.equals(Command.VERIFY_ERR)) {
+                    logger.info("Node verify error received from ".concat(requestMessage.get("nodename")));
+                    processVerifyError(key, requestMessage, command);
+
                 } else {
                     logger.info("Incorrect request from ".concat(client.getLocalAddress().toString()));
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid command", client.getLocalAddress().toString()));
@@ -176,51 +190,124 @@ public class NodeServer {
         }
     }
 
-    private void verifyTransaction(SelectionKey key, Map<String, String> requestMessage) throws IOException {
-        final String nodeName = requestMessage.get("nodeName");
-        final String guid = requestMessage.get("guid");
-        final String senderKey = requestMessage.get("senderkey");
-        final String receiverKey = requestMessage.get("receiverkey");
-        final String amountString = requestMessage.get("amount");
-        final String senderSignature = requestMessage.get("sendersignature");
-        final String timestamp = requestMessage.get("timestamp");
-        final String hash = requestMessage.get("hash");
+    private void processVerifyError(SelectionKey key, Map<String, String> requestMessage, String command) throws IOException {
+        final String nodeName = requestMessage.get("nodename");
         final String signature = requestMessage.get("signature");
+        final Path path = getNodeCertificate(nodeName);
+        final PublicKey nodePublicKey = KeyLoader.loadPublicKey(path);
 
-        Path path = getNodeCertificate(nodeName);
+        if (path != null) {
+            if (NodeUtils.verifyNodeSignature(nodePublicKey, command, nodeName, signature)) {
+                final ServerNodeVerify serverNodeVerify = (ServerNodeVerify) key.attachment();
+                final SocketChannel nodeClient = (SocketChannel) key.channel();
+
+                verificationMap.get(serverNodeVerify.getSenderKey()).incrementError();
+
+                nodeClient.register(selector, SelectionKey.OP_READ, new ServerNode(serverNodeVerify.getName(),
+                        serverNodeVerify.getIp(),
+                        serverNodeVerify.getPort()));
+            }
+        } else {
+            key.cancel();
+            key.channel().close();
+        }
+    }
+
+    private void nodeVerifyTransaction(SelectionKey key, Map<String, String> requestMessage, Command command) throws IOException {
+        final VerifyRequest verifyRequest = new VerifyRequest(requestMessage);
+
+        Path path = getNodeCertificate(verifyRequest.getNodeName());
 
         if (path != null) {
             final PublicKey nodePublicKey = KeyLoader.loadPublicKey(path);
+            final ServerNode serverNode = (ServerNode) key.attachment();
+            final SocketChannel nodeClient = (SocketChannel) key.channel();
 
-            if (NodeUtils.verifyNodeTransferSignature(nodePublicKey, signature, guid, senderKey, receiverKey, amountString,
-                    senderSignature, timestamp, hash, nodeName)) {
+            if (NodeUtils.verifyNodeTransferSignature(nodePublicKey,
+                    verifyRequest.getSignature(),
+                    verifyRequest.getGuid(),
+                    verifyRequest.getSenderKey(),
+                    verifyRequest.getReceiverKey(),
+                    verifyRequest.getAmountString(),
+                    verifyRequest.getSenderSignature(),
+                    verifyRequest.getTimestamp(),
+                    verifyRequest.getHash(),
+                    verifyRequest.getNodeName())) {
 
-                final float amount = Float.parseFloat(amountString);
-                final float userBalance = Ledger.getUserBalance(nodeName, senderKey).calculateBalance();
+                final float amount = Float.parseFloat(verifyRequest.getAmountString());
+                final float userBalance = Ledger.getUserBalance(nodeName, verifyRequest.getSenderKey()).calculateBalance();
 
                 if (userBalance >= amount) {
-                    final String newHash = generateTransactionHash(senderKey, receiverKey, guid, amountString, signature, timestamp, nodeName);
+                    if (command.equals(Command.VERIFY)) {
+                        final String newHash = generateTransactionHash(verifyRequest.getSenderKey(),
+                                verifyRequest.getReceiverKey(),
+                                verifyRequest.getGuid(),
+                                verifyRequest.getAmountString(),
+                                verifyRequest.getSignature(),
+                                verifyRequest.getTimestamp(),
+                                verifyRequest.getNodeName());
 
-                    if (hash.equals(newHash)) {
-                        final String message = NodeUtils.generateNodeVerifyMessage(nodeKeys.getPrivateKey(), Command.VERIFY_OK.name(), guid,
-                                senderKey, receiverKey, amountString, senderSignature, timestamp, hash, this.nodeName);
-                        SocketChannel nodeClient = (SocketChannel) key.channel();
+                        if (verifyRequest.getHash().equals(newHash)) {
+                            final String message = NodeUtils.generateNodeVerifyMessage(nodeKeys.getPrivateKey(),
+                                    Command.VERIFY_OK.name(),
+                                    verifyRequest.getGuid(),
+                                    verifyRequest.getSenderKey(),
+                                    verifyRequest.getReceiverKey(),
+                                    verifyRequest.getAmountString(),
+                                    verifyRequest.getSenderSignature(),
+                                    verifyRequest.getTimestamp(),
+                                    verifyRequest.getHash(),
+                                    this.nodeName);
 
-                        final ServerNode serverNode = (ServerNode) key.attachment();
-                        nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                            nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                        } else {
+                            final String message = NodeUtils
+                                    .generateNodeVerifyErrorMessage(nodeKeys.getPrivateKey(), this.nodeName, Command.VERIFY_ERR);
+                            nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                        }
                     } else {
-                        key.cancel(); // TODO
-                        key.channel().close();// TODO
+                        // Verify ok
+                        verificationMap.get(verifyRequest.getSenderKey()).addSignatureAndIncrement(verifyRequest
+                        .getSenderSignature());
+
+                        nodeClient.register(selector, SelectionKey.OP_READ, serverNode);
                     }
+                } else {
+                    final String message = NodeUtils
+                            .generateNodeVerifyErrorMessage(nodeKeys.getPrivateKey(), this.nodeName, Command.VERIFY_ERR);
+                    nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                 }
             } else {
-                key.cancel(); // TODO
-                key.channel().close(); // TODO
+                final String message = NodeUtils
+                        .generateNodeVerifyErrorMessage(nodeKeys.getPrivateKey(), this.nodeName, Command.VERIFY_ERR);
+                nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
             }
         } else {
-            key.cancel(); // TODO
-            key.channel().close(); // TODO
+            key.cancel();
+            key.channel().close();
         }
+    }
+
+    private boolean waitForVerificationProcess(String userPublicKey) {
+        try {
+            int requestCounter = 0;
+            while (!areAllRequestsReady(userPublicKey) || requestCounter != 3) {
+                Thread.sleep(5000);
+                requestCounter++;
+            }
+        } catch (InterruptedException ex) {
+            logger.error(ex);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean areAllRequestsReady(String userPublicKey) {
+        DataHolder dataHolder = verificationMap.get(userPublicKey);
+        final int totalConnectionsDone = dataHolder.getConnectionsOk() + dataHolder.getConnectionsError();
+        return totalConnectionsDone == dataHolder.getConnections();
     }
 
     private void connectToNode(SelectionKey key, Map<String, String> requestMessage, Command userCommand) throws IOException {
@@ -263,7 +350,7 @@ public class NodeServer {
         Path path = getNodeCertificate(node.getName());
 
         if (path != null
-                && NodeUtils.verifyNodeSignature(KeyLoader.loadPublicKey(path), userCommand.name(), node.getName(), signature, phase)) {
+                && NodeUtils.verifyNodeSignature(KeyLoader.loadPublicKey(path), userCommand.name(), node.getName(), signature)) {
 
             String currentPhase;
 
@@ -273,7 +360,7 @@ public class NodeServer {
                 currentPhase = "ok"; // Sending node_2 the confirmation which will confirm the handshake on both sides.
             }
 
-            final String message = NodeUtils.generateNodeMessage(nodeKeys.getPrivateKey(), this.nodeName, currentPhase);
+            final String message = NodeUtils.generateNodeHandshakeMessage(nodeKeys.getPrivateKey(), this.nodeName, currentPhase);
 
             if (currentPhase.equals("ok")) {
                 updateNodeConnection(node.getName(), true, client);
@@ -352,22 +439,58 @@ public class NodeServer {
                         String.valueOf(timestamp),
                         nodeName);
 
-                if (getConnectedNodes() >= 2) {
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException ex) {
-                        logger.error(ex);
+                List<ServerNode> serverNodes = getConnectedNodes();
+                if (serverNodes.size() >= 2) {
+
+                    // Send request to nodes
+                    sendVerificationRequests(serverNodes,
+                            serverNodes.size(),
+                            Command.VERIFY.name(),
+                            guid,
+                            base64PublicKey,
+                            destinationKey,
+                            stringAmount,
+                            signature,
+                            String.valueOf(timestamp),
+                            transactionHash);
+                    if (waitForVerificationProcess(base64PublicKey)) {
+
+                        // TODO
+                    } else {
+                        // Timeout
                     }
-                    // TODO
                 } else {
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Unable to fulfill your request. Please try again later.", client.getLocalAddress().toString()));
                 }
             } else {
-                client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient funds.", client.getLocalAddress().toString()));
+                client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient Funds", client.getLocalAddress().toString()));
             }
         } else {
             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid signature", client.getLocalAddress().toString()));
         }
+    }
+
+    private void sendVerificationRequests(List<ServerNode> serverNodes,
+                                          int serverConnections,
+                                          String command,
+                                          String guid,
+                                          String senderKey,
+                                          String receiverKey,
+                                          String amount,
+                                          String senderSignature,
+                                          String timestamp,
+                                          String hash) {
+        DataHolder dataHolder = new DataHolder(serverConnections);
+        verificationMap.put(senderKey, dataHolder);
+        serverNodes.forEach(serverNode -> {
+            final String message = NodeUtils.generateNodeVerifyMessage(nodeKeys.getPrivateKey(), command,
+                    guid, senderKey, receiverKey, amount, senderSignature, timestamp, hash, this.nodeName);
+            try {
+                serverNode.getSocketChannel().register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, new ServerNodeVerify(serverNode, senderKey)));
+            } catch (ClosedChannelException ex) {
+                verificationMap.get(senderKey).incrementError();
+            }
+        });
     }
 
     private void registerClient(SelectionKey key) throws IOException {
@@ -487,5 +610,11 @@ public class NodeServer {
                 .filter(serverNode -> serverNode.getName().equals(name))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private List<ServerNode> getConnectedNodes() {
+        return this.serverNodes.parallelStream()
+                .filter(ServerNode::isConnected)
+                .collect(Collectors.toList());
     }
 }
