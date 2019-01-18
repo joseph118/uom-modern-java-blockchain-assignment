@@ -10,30 +10,6 @@ import java.security.PublicKey;
 public class GlobalSignatures {
     private GlobalSignatures() {}
 
-
-    public static boolean isNodeVerifiedTransactionSignatureValid(PublicKey key,
-                                                                  String signature,
-                                                                  String guid,
-                                                                  String senderKey,
-                                                                  String receiverKey,
-                                                                  String amount,
-                                                                  String senderSignature,
-                                                                  String timestamp,
-                                                                  String hash,
-                                                                  String nodeName) {
-        final SignatureVerifier signatureVerifier = new SignatureVerifier(key)
-                .addData(guid)
-                .addData(senderKey)
-                .addData(receiverKey)
-                .addData(amount)
-                .addData(senderSignature)
-                .addData(timestamp)
-                .addData(hash)
-                .addData(nodeName);
-
-        return signatureVerifier.verify(signature);
-    }
-
     public static SignatureBuilder generateTransactionSignature(PrivateKey key, Transaction transaction) {
         return new SignatureBuilder(key)
                 .addData(transaction.getGuid())
@@ -68,7 +44,47 @@ public class GlobalSignatures {
                                                               String signature,
                                                               Transaction transaction) {
 
+        final SignatureVerifier signatureVerifier = generateTransactionSignatureVerifier(key, transaction);
+
+        return signatureVerifier.verify(signature);
+    }
+
+    public static boolean isRecordSignatureValid(PublicKey key,
+                                                String signature,
+                                                Transaction transaction) {
+
+        final SignatureVerifier signatureVerifier = generateTransactionSignatureVerifier(key, transaction)
+                .addData(transaction.getConfirmationSignature());
+
+        return signatureVerifier.verify(signature);
+    }
+
+    public static boolean isNodeVerifiedTransactionSignatureValid(PublicKey key,
+                                                                  String signature,
+                                                                  String guid,
+                                                                  String senderKey,
+                                                                  String receiverKey,
+                                                                  String amount,
+                                                                  String senderSignature,
+                                                                  String timestamp,
+                                                                  String hash,
+                                                                  String nodeName) {
         final SignatureVerifier signatureVerifier = new SignatureVerifier(key)
+                .addData(guid)
+                .addData(senderKey)
+                .addData(receiverKey)
+                .addData(amount)
+                .addData(senderSignature)
+                .addData(timestamp)
+                .addData(hash)
+                .addData(nodeName);
+
+        return signatureVerifier.verify(signature);
+    }
+
+    private static SignatureVerifier generateTransactionSignatureVerifier(PublicKey key,
+                                                                          Transaction transaction) {
+        return new SignatureVerifier(key)
                 .addData(transaction.getGuid())
                 .addData(transaction.getSenderPublicKey())
                 .addData(transaction.getRecipientPublicKey())
@@ -79,7 +95,5 @@ public class GlobalSignatures {
                 .addData(transaction.getVerificationSignature1())
                 .addData(transaction.getVerificationSignature2())
                 .addData(transaction.getVerificationSignature3());
-
-        return signatureVerifier.verify(signature);
     }
 }

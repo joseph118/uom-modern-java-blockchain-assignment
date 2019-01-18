@@ -27,7 +27,7 @@ public class Transfer {
 
     public static void processTransferRequest(SelectionKey key, Map<String, String> requestMessage, String nodeName,
                                               List<ServerNode> connectedNodes, PrivateKey privateKey,
-                                              Map<String, NodeDataRequest> verificationMap) throws IOException {
+                                              Map<String, NodeDataRequest> dataMap) throws IOException {
 
         final String destinationKey = requestMessage.get("destinationkey");
         final String guid = requestMessage.get("guid");
@@ -59,7 +59,7 @@ public class Transfer {
                             key,
                             connectedNodes,
                             privateKey,
-                            verificationMap,
+                            dataMap,
                             nodeName,
                             Command.VERIFY.name(),
                             guid,
@@ -69,8 +69,8 @@ public class Transfer {
                             signature,
                             timestampString,
                             transactionHash);
-                    if (waitForVerificationProcess(base64PublicKey, verificationMap)) {
-                        NodeDataRequest nodeDataRequest = verificationMap.get(base64PublicKey);
+                    if (RequestVerification.waitForVerificationProcess(base64PublicKey, dataMap)) {
+                        NodeDataRequest nodeDataRequest = dataMap.get(base64PublicKey);
                         List<String> signatures = nodeDataRequest.getData();
 
                         if (signatures.size() >= 2) {
@@ -118,27 +118,5 @@ public class Transfer {
         } else {
             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid signature", client.getLocalAddress().toString()));
         }
-    }
-
-    private static boolean waitForVerificationProcess(String userPublicKey, Map<String, NodeDataRequest> verificationMap) {
-        try {
-            int requestCounter = 0;
-            while (!areAllRequestsReady(userPublicKey, verificationMap) || requestCounter != 3) {
-                Thread.sleep(5000);
-                requestCounter++;
-            }
-        } catch (InterruptedException ex) {
-            logger.error(ex);
-
-            return false;
-        }
-
-        return true;
-    }
-
-    private static boolean areAllRequestsReady(String userPublicKey, Map<String, NodeDataRequest> verificationMap) {
-        NodeDataRequest nodeDataRequest = verificationMap.get(userPublicKey);
-        final int totalConnectionsDone = nodeDataRequest.getSuccessfulResponseCount() + nodeDataRequest.getErrorResponseCount();
-        return totalConnectionsDone == nodeDataRequest.getTotalConnectionsMade();
     }
 }

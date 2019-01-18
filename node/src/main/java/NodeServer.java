@@ -125,18 +125,20 @@ public class NodeServer {
 
                 } else if (userCommand.equals(Command.CONFIRM)) {
                     logger.info("Transaction Confirm received from wallet: ".concat(client.getLocalAddress().toString()));
-                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName));
+                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName), nodeDataMap);
 
                 } else if (userCommand.equals(Command.RECORD)) {
                     logger.info("Node >Save Record< received from ".concat(requestMessage.get("nodename")));
-                    //Record.processRecordRequest();
+                    Record.processRecordRequest(key, requestMessage, nodeKeys.getPrivateKey(), nodeName);
 
                 } else if (userCommand.equals(Command.RECORD_OK)) {
                     logger.info("Node >Record Ok< received from ".concat(requestMessage.get("nodename")));
                     // TODO
+
                 } else if (userCommand.equals(Command.RECORD_ERR)) {
                     logger.info("Node >Record Error< received from ".concat(requestMessage.get("nodename")));
                     // TODO
+
                 } else {
                     logger.info("Incorrect verification from ".concat(client.getLocalAddress().toString()));
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid command", client.getLocalAddress().toString()));
@@ -257,19 +259,42 @@ public class NodeServer {
                 // Server Node - Handshake
                 return map.containsKey("nodename") && map.containsKey("phase");
             } else if (map.get("command").equals(Command.VERIFY.name())
-                    || map.get("command").equals(Command.VERIFY_OK.name())) {
-                // Server Node - Verify
-                return map.containsKey("nodename")
-                        && map.containsKey("guid")
-                        && map.containsKey("senderkey")
-                        && map.containsKey("receiverkey")
-                        && map.containsKey("amount")
-                        && map.containsKey("sendersignature")
-                        && map.containsKey("timestamp")
-                        && map.containsKey("hash");
+                    || map.get("command").equals(Command.VERIFY_OK.name())
+                    || map.get("command").equals(Command.CONFIRM.name())
+                    || map.get("command").equals(Command.RECORD.name())) {
+
+                if (map.containsKey("nodename")
+                    && map.containsKey("guid")
+                    && map.containsKey("senderkey")
+                    && map.containsKey("receiverkey")
+                    && map.containsKey("amount")
+                    && map.containsKey("sendersignature")
+                    && map.containsKey("timestamp")
+                    && map.containsKey("hash")) {
+
+                    if (map.get("command").equals(Command.CONFIRM.name())
+                            || map.get("command").equals(Command.RECORD.name())) {
+
+                        if (map.containsKey("signature1")
+                                && map.containsKey("signature2")
+                                && map.containsKey("signature3")) {
+
+                            if (map.get("command").equals(Command.RECORD.name())) {
+                                return map.containsKey("confirmsignature");
+                            } else {
+                                return true;
+                            }
+                        }
+                    } else {
+                        return true;
+                    }
+                }
             } else if (map.get("command").equals(Command.VERIFY_ERR.name())) {
                 return map.containsKey("nodename");
-            } else {
+            } else if (map.get("command").equals(Command.RECORD_OK.name())
+                    || map.get("command").equals(Command.RECORD_ERR.name())) {
+                return map.containsKey("success");
+            }else {
                 // Wallet
                 if (map.containsKey("key")) {
                     if (map.get("command").equals(Command.TRANSFER.name())) {

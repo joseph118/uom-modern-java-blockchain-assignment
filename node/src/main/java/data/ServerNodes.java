@@ -12,11 +12,6 @@ public class ServerNodes {
         this.serverNodes = serverNodes;
     }
 
-    public long getConnectedNodesCount() {
-        return this.serverNodes.parallelStream()
-                .filter(ServerNode::isConnected).count();
-    }
-
     public ServerNode getNodeByName(String name) {
         return this.serverNodes.parallelStream()
                 .filter(serverNode -> serverNode.getName().equals(name))

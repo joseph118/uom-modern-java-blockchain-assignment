@@ -89,4 +89,13 @@ public class Messages {
                 .concat(",command=").concat(Command.RECORD.name()).concat(",")
                 .concat(transaction.toTransactionConfirmationResponseRow());
     }
+
+    public static String generateWalletConfirmationMessage(PrivateKey privateKey, String nodeName, Transaction transaction) {
+        final String signature = GlobalSignatures.generateConfirmedTransactionSignature(privateKey, transaction);
+
+        return "signature=".concat(signature)
+                .concat(",nodename=").concat(nodeName)
+                .concat(",command=").concat(Command.CONFIRM_OK.name()).concat(",")
+                .concat(transaction.toTransactionConfirmationResponseRow());
+    }
 }

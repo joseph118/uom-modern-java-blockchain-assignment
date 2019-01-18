@@ -81,7 +81,27 @@ public class Transaction {
                 response.getOrDefault("signature1", ""),
                 response.getOrDefault("signature2", ""),
                 response.getOrDefault("signature3", ""),
-                response.getOrDefault("signature", ""));
+                response.getOrDefault("confirmsignature", ""));
+    }
+
+    /**
+     * Maps the client response to a transaction. Undefined values will be replaced by empty strings or 0 for numbers.
+     * @param response The valid response retrieved from the client.
+     * @return A new transaction instance.
+     */
+    public static Transaction mapResponseToTransaction(Map<String, String> response, String confirmationSignatureKey) {
+        return new Transaction(
+                Long.parseLong(response.getOrDefault("timestamp", "0")),
+                response.getOrDefault("hash", ""),
+                response.getOrDefault("guid", ""),
+                response.getOrDefault("senderkey", ""),
+                response.getOrDefault("receiverkey", ""),
+                Float.parseFloat(response.getOrDefault("amount", "0")),
+                response.getOrDefault("sendersignature", ""),
+                response.getOrDefault("signature1", ""),
+                response.getOrDefault("signature2", ""),
+                response.getOrDefault("signature3", ""),
+                response.getOrDefault(confirmationSignatureKey, ""));
     }
 
     @Override

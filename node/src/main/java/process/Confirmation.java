@@ -3,11 +3,15 @@ package process;
 import communication.GlobalSignatures;
 import communication.TransactionVerification;
 import core.message.wallet.ErrorMessage;
+import core.message.wallet.SuccessMessage;
+import data.Ledger;
+import data.NodeDataRequest;
 import data.ServerNode;
 import data.Transaction;
 import org.apache.log4j.Logger;
 import security.KeyLoader;
 import util.Messages;
+import util.RequestVerification;
 import util.Response;
 
 import java.io.IOException;
@@ -28,7 +32,8 @@ public class Confirmation {
                                                    Map<String, String> requestMessage,
                                                    PrivateKey privateKey,
                                                    String nodeName,
-                                                   List<ServerNode> connectedNodes ) throws IOException {
+                                                   List<ServerNode> connectedNodes,
+                                                   Map<String, NodeDataRequest> nodeDataRequestMap) throws IOException {
 
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
@@ -36,15 +41,22 @@ public class Confirmation {
         if (Response.isWalletConfirmResponseValid(requestMessage)) {
             final PublicKey walletKey = KeyLoader.decodePublicKey(requestMessage.get("key"));
             final String signature = requestMessage.get("signature");
-            final Transaction transaction = Transaction.mapResponseToTransaction(requestMessage);
+            final Transaction transaction = Transaction.mapResponseToTransaction(requestMessage, "signature");
 
             if (GlobalSignatures.isVerifiedTransactionSignatureValid(walletKey, signature, transaction)) {
                 if (TransactionVerification.isTransactionValid(transaction)) {
-                    final String message = Messages.generateNodeConfirmationMessage(privateKey, nodeName, transaction);
-                    Record.triggerTransactionConfirmation(selector, connectedNodes, nodeName, message);
+                    final String nodeMessage = Messages.generateNodeConfirmationMessage(privateKey, nodeName, transaction);
+                    Record.triggerTransactionConfirmation(selector, connectedNodes, nodeName, nodeMessage, nodeDataRequestMap, transaction.getSenderPublicKey());
 
-                    // TODO --- save. -- wait --- send client ok if ok.
+                    if (RequestVerification.waitForVerificationProcess(transaction.getSenderPublicKey(), nodeDataRequestMap)) {
+                        // TODO Synchronized block
+                        Ledger.addTransaction(transaction, nodeName);
 
+                        final String walletMessage = Messages.generateWalletConfirmationMessage(privateKey, nodeName, transaction);
+                        client.register(selector, SelectionKey.OP_WRITE, new SuccessMessage(walletMessage, client.getLocalAddress().toString(), true));
+                    } else {
+                        client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Error while adding new record", client.getLocalAddress().toString()));
+                    }
                 } else {
                     // Invalid node verification
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid node verifications", client.getLocalAddress().toString()));
