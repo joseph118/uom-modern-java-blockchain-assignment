@@ -2,9 +2,10 @@ package process;
 
 import core.message.wallet.ErrorMessage;
 import core.message.wallet.SuccessMessage;
+import data.Command;
 import data.Ledger;
 import data.ServerNode;
-import data.verification.VerificationRequest;
+import data.NodeDataRequest;
 import org.apache.log4j.Logger;
 import security.KeyLoader;
 import util.*;
@@ -26,7 +27,7 @@ public class Transfer {
 
     public static void processTransferRequest(SelectionKey key, Map<String, String> requestMessage, String nodeName,
                                               List<ServerNode> connectedNodes, PrivateKey privateKey,
-                                              Map<String, VerificationRequest> verificationMap) throws IOException {
+                                              Map<String, NodeDataRequest> verificationMap) throws IOException {
 
         final String destinationKey = requestMessage.get("destinationkey");
         final String guid = requestMessage.get("guid");
@@ -69,8 +70,8 @@ public class Transfer {
                             timestampString,
                             transactionHash);
                     if (waitForVerificationProcess(base64PublicKey, verificationMap)) {
-                        VerificationRequest verificationRequest = verificationMap.get(base64PublicKey);
-                        List<String> signatures = verificationRequest.getSignatures();
+                        NodeDataRequest nodeDataRequest = verificationMap.get(base64PublicKey);
+                        List<String> signatures = nodeDataRequest.getData();
 
                         if (signatures.size() >= 2) {
                             final String signatureOne = nodeName.concat(":").concat(Signatures.generateNodeTransferSignature(
@@ -119,7 +120,7 @@ public class Transfer {
         }
     }
 
-    private static boolean waitForVerificationProcess(String userPublicKey, Map<String, VerificationRequest> verificationMap) {
+    private static boolean waitForVerificationProcess(String userPublicKey, Map<String, NodeDataRequest> verificationMap) {
         try {
             int requestCounter = 0;
             while (!areAllRequestsReady(userPublicKey, verificationMap) || requestCounter != 3) {
@@ -135,9 +136,9 @@ public class Transfer {
         return true;
     }
 
-    private static boolean areAllRequestsReady(String userPublicKey, Map<String, VerificationRequest> verificationMap) {
-        VerificationRequest verificationRequest = verificationMap.get(userPublicKey);
-        final int totalConnectionsDone = verificationRequest.getConnectionsOk() + verificationRequest.getConnectionsError();
-        return totalConnectionsDone == verificationRequest.getConnections();
+    private static boolean areAllRequestsReady(String userPublicKey, Map<String, NodeDataRequest> verificationMap) {
+        NodeDataRequest nodeDataRequest = verificationMap.get(userPublicKey);
+        final int totalConnectionsDone = nodeDataRequest.getSuccessfulResponseCount() + nodeDataRequest.getErrorResponseCount();
+        return totalConnectionsDone == nodeDataRequest.getTotalConnectionsMade();
     }
 }

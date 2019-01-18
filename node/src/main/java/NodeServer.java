@@ -3,9 +3,9 @@ import core.message.wallet.ErrorMessage;
 import core.message.node.NodeMessage;
 import core.message.wallet.SuccessMessage;
 import process.*;
-import data.verification.VerificationRequest;
+import data.NodeDataRequest;
 import exception.ArgumentsNotFoundException;
-import util.Command;
+import data.Command;
 import org.apache.log4j.Logger;
 import util.*;
 
@@ -22,7 +22,7 @@ public class NodeServer {
     private final ServerNodes serverNodes;
     private final String nodeName;
     private final KeyHolder nodeKeys;
-    private final Map<String, VerificationRequest> verificationMap;
+    private final Map<String, NodeDataRequest> nodeDataMap;
     private boolean running;
 
     public NodeServer(List<ServerNode> serverNodes, String nodeName, KeyHolder nodeKeys) {
@@ -31,7 +31,7 @@ public class NodeServer {
         this.nodeKeys = nodeKeys;
         this.running = false;
 
-        this.verificationMap = new ConcurrentHashMap<>();
+        this.nodeDataMap = new ConcurrentHashMap<>();
     }
 
     public void startServer(int portNumber, Selector selector) throws IOException {
@@ -102,31 +102,34 @@ public class NodeServer {
 
                 if (userCommand.equals(Command.TRANSFER)) {
                     logger.info("Transfer verification received from ".concat(client.getLocalAddress().toString()));
-                    Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(), nodeKeys.getPrivateKey(), verificationMap);
+                    Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(), nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.HISTORY) || userCommand.equals(Command.BALANCE)) {
                     logger.info("Balance or history verification received from ".concat(client.getLocalAddress().toString()));
                     SimpleRequest.processHistoryOrBalanceRequest(key, requestMessage, userCommand, nodeName, nodeKeys.getPrivateKey());
 
-                } else if (userCommand.equals(Command.CONNECT)) {
+                } else if (userCommand.equals(Command.NODE_CONNECT)) {
                     logger.info("Node connection verification received from ".concat(requestMessage.get("nodename")));
                     Handshake.connectToNode(key, requestMessage, userCommand, this.nodeName, nodeKeys.getPrivateKey(), serverNodes);
 
                 } else if (userCommand.equals(Command.VERIFY)) {
                     logger.info("Node verify verification received from ".concat(requestMessage.get("nodename")));
-                    Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY, nodeName, nodeKeys.getPrivateKey(), verificationMap);
+                    Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.VERIFY_OK)) {
                     logger.info("Node verify ok received from ".concat(requestMessage.get("nodename")));
-                    Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY_OK, nodeName, nodeKeys.getPrivateKey(), verificationMap);
+                    Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY_OK, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.VERIFY_ERR)) {
                     logger.info("Node verify error received from ".concat(requestMessage.get("nodename")));
-                    Verification.processVerifyError(key, requestMessage, command, verificationMap);
+                    Verification.processVerifyError(key, requestMessage, command, nodeDataMap);
 
                 } else if (userCommand.equals(Command.CONFIRM)) {
                     logger.info("Confirm verification received from ".concat(client.getLocalAddress().toString()));
                     Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName);
+
+                } else if (userCommand.equals(Command.RECORD)) {
+                    // TODO
 
                 } else {
                     logger.info("Incorrect verification from ".concat(client.getLocalAddress().toString()));
@@ -243,7 +246,7 @@ public class NodeServer {
     }
 
     private void triggerConnectionToServerNodes(Selector selector) {
-        final List<ServerNode> serverNodes = this.serverNodes.getConnectedNodes();
+        final List<ServerNode> serverNodes = this.serverNodes.getNodes(nodeName);
 
         if (!serverNodes.isEmpty()) {
             serverNodes.forEach(serverNode -> {
@@ -265,7 +268,7 @@ public class NodeServer {
 
     private static boolean isRequestArgumentsValid(Map<String, String> map) {
         if (map.containsKey("command") && map.containsKey("signature")) {
-            if (map.get("command").equals(Command.CONNECT.name())) {
+            if (map.get("command").equals(Command.NODE_CONNECT.name())) {
                 // Server Node - Handshake
                 return map.containsKey("nodename") && map.containsKey("phase");
             } else if (map.get("command").equals(Command.VERIFY.name())

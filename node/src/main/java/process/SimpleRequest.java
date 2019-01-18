@@ -4,7 +4,7 @@ import core.message.wallet.ErrorMessage;
 import core.message.wallet.SuccessMessage;
 import data.Ledger;
 import security.KeyLoader;
-import util.Command;
+import data.Command;
 import util.Messages;
 import util.Signatures;
 

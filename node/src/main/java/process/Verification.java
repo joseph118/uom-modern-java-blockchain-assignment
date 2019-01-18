@@ -2,10 +2,11 @@ package process;
 
 import communication.GlobalSignatures;
 import core.message.node.NodeMessage;
+import data.Command;
 import data.Ledger;
 import data.ServerNode;
 import data.ServerNodeVerify;
-import data.verification.VerificationRequest;
+import data.NodeDataRequest;
 import data.verification.VerifyRequest;
 import org.apache.log4j.Logger;
 import security.KeyLoader;
@@ -29,7 +30,7 @@ public class Verification {
 
     public static void nodeVerifyTransaction(SelectionKey key, Map<String, String> requestMessage,
                                              Command command, String nodeName, PrivateKey privateKey,
-                                             Map<String, VerificationRequest> verificationMap) throws IOException {
+                                             Map<String, NodeDataRequest> nodeDataRequest) throws IOException {
         final VerifyRequest verifyRequest = new VerifyRequest(requestMessage);
 
         Path path = Resource.getNodeCertificate(verifyRequest.getNodeName());
@@ -87,8 +88,8 @@ public class Verification {
                         final String signature = verifyRequest.getNodeName()
                                 .concat(":").concat(verifyRequest.getSignature());
 
-                        verificationMap.get(verifyRequest.getSenderKey())
-                                .addSignatureAndIncrement(signature);
+                        nodeDataRequest.get(verifyRequest.getSenderKey())
+                                .addDataAndIncrementOkResponse(signature);
 
                         nodeClient.register(selector, SelectionKey.OP_READ, serverNode);
                     }
@@ -108,19 +109,18 @@ public class Verification {
         }
     }
 
-    public static void processVerifyError(SelectionKey key, Map<String, String> requestMessage, String command, Map<String, VerificationRequest> verificationMap) throws IOException {
+    public static void processVerifyError(SelectionKey key, Map<String, String> requestMessage, String command, Map<String, NodeDataRequest> nodeDataRequest) throws IOException {
         final String nodeName = requestMessage.get("nodename");
         final String signature = requestMessage.get("signature");
         final Path path = Resource.getNodeCertificate(nodeName);
         final PublicKey nodePublicKey = KeyLoader.loadPublicKey(path);
         final Selector selector = key.selector();
-
-        if (path != null) {
+         if (path != null) {
             if (Signatures.verifyNodeSignature(nodePublicKey, command, nodeName, signature)) {
                 final ServerNodeVerify serverNodeVerify = (ServerNodeVerify) key.attachment();
                 final SocketChannel nodeClient = (SocketChannel) key.channel();
 
-                verificationMap.get(serverNodeVerify.getSenderKey()).incrementError();
+                nodeDataRequest.get(serverNodeVerify.getSenderKey()).incrementErrorResponse();
 
                 nodeClient.register(selector, SelectionKey.OP_READ, new ServerNode(serverNodeVerify.getName(),
                         serverNodeVerify.getIp(),
@@ -135,7 +135,7 @@ public class Verification {
     public static void sendVerificationRequests(SelectionKey key,
                                          List<ServerNode> serverNodes,
                                          PrivateKey privateKey,
-                                         Map<String, VerificationRequest> verificationMap,
+                                         Map<String, NodeDataRequest> nodeDataRequestMap,
                                          String nodeName,
                                          String command,
                                          String guid,
@@ -146,15 +146,15 @@ public class Verification {
                                          String timestamp,
                                          String hash) {
         final Selector selector = key.selector();
-        final VerificationRequest verificationRequest = new VerificationRequest(serverNodes.size());
-        verificationMap.put(senderKey, verificationRequest);
+        final NodeDataRequest nodeDataRequest = new NodeDataRequest(serverNodes.size());
+        nodeDataRequestMap.put(senderKey, nodeDataRequest);
         serverNodes.forEach(serverNode -> {
             final String message = Messages.generateNodeVerifyMessage(privateKey, command,
                     guid, senderKey, receiverKey, amount, senderSignature, timestamp, hash, nodeName);
             try {
                 serverNode.getSocketChannel().register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, new ServerNodeVerify(serverNode, senderKey)));
             } catch (ClosedChannelException ex) {
-                verificationMap.get(senderKey).incrementError();
+                nodeDataRequestMap.get(senderKey).incrementErrorResponse();
             }
         });
     }

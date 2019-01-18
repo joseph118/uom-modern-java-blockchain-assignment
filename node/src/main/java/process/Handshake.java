@@ -2,7 +2,7 @@ package process;
 
 import data.ServerNodes;
 import security.KeyLoader;
-import util.Command;
+import data.Command;
 import core.message.node.NodeMessage;
 import data.ServerNode;
 import org.apache.log4j.Logger;
@@ -114,7 +114,7 @@ public class Handshake {
     }
 
     private static String generateNodeHandshakeMessage(PrivateKey privateKey, String nodeName, String phase) {
-        final String command = Command.CONNECT.name();
+        final String command = Command.NODE_CONNECT.name();
         final String signature = Signatures.generateNodeSignature(privateKey, command, nodeName);
 
         return "command=".concat(command)

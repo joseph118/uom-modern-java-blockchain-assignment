@@ -1,4 +1,4 @@
-package data.verification;
+package data;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,53 +6,53 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class VerificationRequest {
+public class NodeDataRequest {
     private AtomicInteger connectionsOk;
     private AtomicInteger connectionsError;
     private final int connections;
-    private Queue<String> signatureQueue;
+    private Queue<String> dataQueue;
 
-    public VerificationRequest(int connections) {
+    public NodeDataRequest(int connections) {
         this.connectionsOk = new AtomicInteger(0);
         this.connectionsError = new AtomicInteger(0);
-        this.signatureQueue = new ConcurrentLinkedQueue<>();
+        this.dataQueue = new ConcurrentLinkedQueue<>();
 
         this.connections = connections;
     }
 
-    private void incrementOk() {
+    private void incrementOkResponse() {
         connectionsOk.incrementAndGet();
     }
 
-    public void addSignatureAndIncrement(String signature) {
-        signatureQueue.offer(signature);
-        incrementOk();
+    public void addDataAndIncrementOkResponse(String signature) {
+        dataQueue.offer(signature);
+        incrementOkResponse();
     }
 
-    public List<String> getSignatures() {
+    public List<String> getData() {
         List<String> signatures = new ArrayList<>();
 
         String signature;
-        while ((signature = signatureQueue.poll()) != null) {
+        while ((signature = dataQueue.poll()) != null) {
             signatures.add(signature);
         }
 
         return signatures;
     }
 
-    public int incrementError() {
+    public int incrementErrorResponse() {
         return connectionsError.incrementAndGet();
     }
 
-    public int getConnectionsError() {
+    public int getErrorResponseCount() {
         return connectionsError.get();
     }
 
-    public int getConnectionsOk() {
+    public int getSuccessfulResponseCount() {
         return connectionsOk.get();
     }
 
-    public int getConnections() {
+    public int getTotalConnectionsMade() {
         return connections;
     }
 }

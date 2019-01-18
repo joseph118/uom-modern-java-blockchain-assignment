@@ -30,6 +30,12 @@ public class ServerNodes {
                 .collect(Collectors.toList());
     }
 
+    public List<ServerNode> getNodes(String nodeName) {
+        return serverNodes.parallelStream()
+                .filter(serverNode -> !serverNode.getName().equals(nodeName))
+                .collect(Collectors.toList());
+    }
+
     public void updateNodeConnection(String nodeName, boolean isConnected, SocketChannel client) {
         Optional<ServerNode> serverNodeOptional = this.serverNodes.parallelStream()
                 .filter(serverNode -> serverNode.getName().equals(nodeName))

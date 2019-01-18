@@ -4,7 +4,7 @@ import util.Resource;
 import data.Transaction;
 import security.SignatureVerifier;
 import util.Parser;
-import util.Command;
+import data.Command;
 import data.KeyHolder;
 import data.ServerNode;
 import security.KeyLoader;

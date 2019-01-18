@@ -1,5 +1,6 @@
 package util;
 
+import data.Command;
 import exception.ArgumentsNotFoundException;
 
 import java.math.RoundingMode;
@@ -63,8 +64,8 @@ public class Parser {
                 return Command.HISTORY;
             case "TRANSFER":
                 return Command.TRANSFER;
-            case "CONNECT":
-                return Command.CONNECT;
+            case "NODE_CONNECT":
+                return Command.NODE_CONNECT;
             case "VERIFY":
                 return Command.VERIFY;
             case "VERIFY_OK":

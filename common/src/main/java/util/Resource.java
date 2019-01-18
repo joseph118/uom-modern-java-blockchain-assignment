@@ -65,6 +65,7 @@ public class Resource {
     }
 
     public static URL getResource(String name, String extension) {
-        return Resource.class.getResource(name.concat(extension));
+        ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+        return classLoader.getResource(name.concat(extension));
     }
 }

@@ -1,6 +1,7 @@
 package util;
 
 import communication.GlobalSignatures;
+import data.Command;
 import data.Transaction;
 
 import java.security.PrivateKey;
@@ -84,7 +85,8 @@ public class Messages {
         final String signature = GlobalSignatures.generateConfirmedTransactionSignature(privateKey, transaction);
 
         return "signature=".concat(signature)
-                .concat(",nodename=").concat(nodeName).concat(",")
+                .concat(",nodename=").concat(nodeName)
+                .concat(",command=").concat(Command.RECORD.name()).concat(",")
                 .concat(transaction.toTransactionConfirmationResponseRow());
     }
 }
