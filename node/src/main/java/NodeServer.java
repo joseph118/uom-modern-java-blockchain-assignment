@@ -62,6 +62,7 @@ public class NodeServer {
                         Handshake.connectToServerNode(key, this.nodeName, nodeKeys.getPrivateKey());
 
                     } else if (key.isValid() && key.isWritable()) {
+                        logger.info("write req received");
                         // a channel is ready for writing
                         if (key.attachment() != null) {
                             processWriteRequest(key);
@@ -122,11 +123,11 @@ public class NodeServer {
 
                 } else if (userCommand.equals(Command.VERIFY)) {
                     logger.info("Node >Verify< received from ".concat(requestMessage.get("nodename")));
-                    Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
+                    Verification.nodeVerifyTransaction(key, requestMessage, userCommand, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.VERIFY_OK)) {
                     logger.info("Node >Verify Ok< received from ".concat(requestMessage.get("nodename")));
-                    Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY_OK, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
+                    Verification.nodeVerifyTransaction(key, requestMessage, userCommand, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.VERIFY_ERR)) {
                     logger.info("Node >Verify Error< received from ".concat(requestMessage.get("nodename")));
@@ -252,8 +253,10 @@ public class NodeServer {
 
     private void processWriteRequest(SelectionKey key) throws IOException {
         if (key.attachment() instanceof NodeMessage) {
+            logger.info("1..");
             writeToNode(key);
         } else {
+            logger.info("2..");
             writeToWallet(key);
         }
     }

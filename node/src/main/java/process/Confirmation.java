@@ -38,6 +38,8 @@ public class Confirmation {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
 
+        String senderKey = requestMessage.getOrDefault("key", "");
+
         if (Response.isWalletConfirmResponseValid(requestMessage)) {
             final PublicKey walletKey = KeyLoader.decodePublicKey(requestMessage.get("key"));
             final String signature = requestMessage.get("signature");
@@ -69,5 +71,7 @@ public class Confirmation {
             // Invalid response
             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid response", client.getLocalAddress().toString()));
         }
+
+        nodeDataRequestMap.remove(senderKey);
     }
 }

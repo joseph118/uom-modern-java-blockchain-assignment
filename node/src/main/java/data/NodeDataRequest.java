@@ -55,4 +55,14 @@ public class NodeDataRequest {
     public int getTotalConnectionsMade() {
         return connections;
     }
+
+    @Override
+    public String toString() {
+        return "NodeDataRequest{" +
+                "connectionsOk=" + connectionsOk +
+                ", connectionsError=" + connectionsError +
+                ", connections=" + connections +
+                ", dataQueue=" + dataQueue +
+                '}';
+    }
 }

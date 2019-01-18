@@ -57,6 +57,7 @@ public class Verification {
 
                 if (userBalance >= amount) {
                     if (command.equals(Command.VERIFY)) {
+                        logger.info("Command verify");
                         final String newHash = Transactions.generateTransactionHash(verifyRequest.getSenderKey(),
                                 verifyRequest.getReceiverKey(),
                                 verifyRequest.getGuid(),
@@ -84,6 +85,7 @@ public class Verification {
                             nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                         }
                     } else {
+                        logger.info("Command verify ok");
                         // Verify ok
                         final String signature = verifyRequest.getNodeName()
                                 .concat(":").concat(verifyRequest.getSignature());
@@ -96,14 +98,20 @@ public class Verification {
                 } else {
                     final String message = Messages
                             .generateNodeVerifyErrorMessage(privateKey, nodeName, Command.VERIFY_ERR);
+                    logger.error(message);
+
                     nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                 }
             } else {
                 final String message = Messages
                         .generateNodeVerifyErrorMessage(privateKey, nodeName, Command.VERIFY_ERR);
+
+                logger.error(message);
                 nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
             }
         } else {
+            logger.error("Error - Node certificate not found.");
+
             key.cancel();
             key.channel().close();
         }
@@ -153,7 +161,11 @@ public class Verification {
                     guid, senderKey, receiverKey, amount, senderSignature, timestamp, hash, nodeName);
             try {
                 serverNode.getSocketChannel().register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, new ServerNodeVerify(serverNode, senderKey)));
+
+                logger.info(serverNode.toString().concat(" - Request Sent"));
             } catch (ClosedChannelException ex) {
+
+                logger.error(serverNode.toString().concat(" - Error while sending request"));
                 nodeDataRequestMap.get(senderKey).incrementErrorResponse();
             }
         });

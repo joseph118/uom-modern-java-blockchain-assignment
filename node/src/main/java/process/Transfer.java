@@ -101,21 +101,27 @@ public class Transfer {
                                     signatureTwo,
                                     signatureThree);
 
+                            logger.info(message);
                             client.register(selector, SelectionKey.OP_WRITE,
                                     new SuccessMessage(message, client.getLocalAddress().toString(), false));
                         } else {
+                            logger.error("Verification failed");
                             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Verification failed", client.getLocalAddress().toString()));
                         }
                     } else {
+                        logger.error("Node connection timed out.");
                         client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Node connection timed out.", client.getLocalAddress().toString()));
                     }
                 } else {
+                    logger.error("Unable to fulfill your verification. Please try again later.");
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Unable to fulfill your verification. Please try again later.", client.getLocalAddress().toString()));
                 }
             } else {
+                logger.error("Insufficient Funds");
                 client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Insufficient Funds", client.getLocalAddress().toString()));
             }
         } else {
+            logger.error("Invalid signature");
             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid signature", client.getLocalAddress().toString()));
         }
     }
