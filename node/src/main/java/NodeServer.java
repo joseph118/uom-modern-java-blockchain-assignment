@@ -85,8 +85,6 @@ public class NodeServer {
         this.running = running;
     }
 
-
-
     private void processRequest(SelectionKey key) throws IOException, ArgumentsNotFoundException {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
@@ -149,10 +147,6 @@ public class NodeServer {
                 logger.info("Node: ".concat(serverNode.getName().concat(", has been disconnected.")));
             }
         }
-    }
-
-    private void processRequestData() {
-
     }
 
     private String getClientData(SocketChannel client) throws IOException {

@@ -4,6 +4,7 @@ import communication.GlobalSignatures;
 import communication.TransactionVerification;
 import core.message.wallet.ErrorMessage;
 import data.Transaction;
+import org.apache.log4j.Logger;
 import security.KeyLoader;
 import util.Messages;
 import util.Response;
@@ -17,6 +18,10 @@ import java.security.PublicKey;
 import java.util.Map;
 
 public class Confirmation {
+    private final static Logger logger = Logger.getLogger(Transfer.class);
+
+    private Confirmation() {}
+
     public static void processTransferConfirmation(SelectionKey key, Map<String, String> requestMessage, PrivateKey privateKey, String nodeName) throws IOException {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();

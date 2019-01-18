@@ -11,6 +11,10 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 public class Resource {
+    private Resource() {
+
+    }
+    
     public static KeyHolder getWalletKeys(String name, String password, URL userResource, URL nodeResource) {
 
         try {
