@@ -3,15 +3,15 @@ package process;
 import communication.GlobalSignatures;
 import core.message.node.NodeMessage;
 import core.message.wallet.ErrorMessage;
-import data.NodeDataRequest;
-import data.ServerNode;
-import data.Transaction;
+import data.*;
 import org.apache.log4j.Logger;
 import security.KeyLoader;
+import util.Messages;
 import util.Resource;
+import util.Signatures;
 
 import java.io.IOException;
-import java.net.URL;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -28,7 +28,7 @@ public class Record {
 
     }
 
-    public static void processRecordRequest(SelectionKey key, Map<String, String> requestMessage, PrivateKey privateKey, String nodeName) throws IOException {
+    public static void processRecordRequest(SelectionKey key, Map<String, String> requestMessage, PrivateKey privateKey, String nodeName, ServerNodes serverNodes) throws IOException {
         final String senderNodeName = requestMessage.get("nodename");
         final String signature = requestMessage.get("signature");
         Path path = Resource.getNodeCertificate(senderNodeName);
@@ -38,13 +38,21 @@ public class Record {
             final Selector selector = key.selector();
             final Transaction transaction = Transaction.mapResponseToTransaction(requestMessage);
             final PublicKey senderNodePublicKey = KeyLoader.loadPublicKey(path);
+            final ServerNode serverNode = serverNodes.getNodeByName(senderNodeName);
+            final String message;
 
             if (GlobalSignatures.isRecordSignatureValid(senderNodePublicKey, signature, transaction)) {
+                // TODO Syncronize block
+                Ledger.addTransaction(transaction, nodeName);
 
+                message = Messages.generateNodeRecordOkMessage(privateKey, transaction);
             } else {
                 // Invalid signature
-                client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid signature", client.getLocalAddress().toString()));
+                message = Messages.generateNodeRecordErrorMessage(privateKey, transaction);
+                client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
             }
+
+            client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
         } else {
             key.cancel();
             key.channel().close();
@@ -70,6 +78,29 @@ public class Record {
                     nodeDataRequestMap.get(senderKey).incrementErrorResponse();
                 }
             });
+        }
+    }
+
+    public static void processRecordResponse(SelectionKey key, Map<String, String> requestMessage, PrivateKey privateKey, Map<String, NodeDataRequest> dataMap) throws ClosedChannelException, IOException {
+        final String senderNodeName = requestMessage.get("nodename");
+        final String signature = requestMessage.get("signature");
+        final String senderKey = requestMessage.get("senderkey");
+        final SocketChannel client = (SocketChannel) key.channel();
+        final Selector selector = key.selector();
+        final ServerNode serverNode = (ServerNode) key.attachment();
+
+        final Path path = Resource.getNodeCertificate(senderNodeName);
+        if (path != null) {
+            if (Signatures.verifySignature(KeyLoader.loadPublicKey(path), senderKey, signature)) {
+                dataMap.get(senderKey).incrementOkResponse();
+            } else {
+                dataMap.get(senderKey).incrementErrorResponse();
+            }
+
+            client.register(selector, SelectionKey.OP_READ, serverNode);
+        } else {
+            key.cancel();
+            key.channel().close();
         }
     }
 }

@@ -20,8 +20,8 @@ public class NodeDataRequest {
         this.connections = connections;
     }
 
-    private void incrementOkResponse() {
-        connectionsOk.incrementAndGet();
+    public int incrementOkResponse() {
+        return connectionsOk.incrementAndGet();
     }
 
     public void addDataAndIncrementOkResponse(String signature) {

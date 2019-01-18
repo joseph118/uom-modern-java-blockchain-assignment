@@ -38,7 +38,14 @@ public class Signatures {
         return signatureVerifier.verify(signature);
     }
 
+    public static boolean verifySignature(PublicKey key,
+                                          String data,
+                                          String signature) {
+        SignatureVerifier signatureVerifier = new SignatureVerifier(key)
+                .addData(data);
 
+        return signatureVerifier.verify(signature);
+    }
 
     public static String generateSignature(PrivateKey privateKey, String data) {
         final SignatureBuilder signatureBuilder = new SignatureBuilder(privateKey)

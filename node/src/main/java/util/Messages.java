@@ -98,4 +98,20 @@ public class Messages {
                 .concat(",command=").concat(Command.CONFIRM_OK.name()).concat(",")
                 .concat(transaction.toTransactionConfirmationResponseRow());
     }
+
+    public static String generateNodeRecordOkMessage(PrivateKey privateKey, Transaction transaction) {
+        final String signature = Signatures.generateSignature(privateKey, transaction.getSenderPublicKey());
+
+        return "signature=".concat(signature)
+                .concat(",command=").concat(Command.RECORD_OK.name())
+                .concat(",senderkey=").concat(transaction.getSenderPublicKey());
+    }
+
+    public static String generateNodeRecordErrorMessage(PrivateKey privateKey, Transaction transaction) {
+        final String signature = Signatures.generateSignature(privateKey, transaction.getSenderPublicKey());
+
+        return "signature=".concat(signature)
+                .concat(",command=").concat(Command.RECORD_ERR.name())
+                .concat(",senderkey=").concat(transaction.getSenderPublicKey());
+    }
 }

@@ -99,6 +99,8 @@ public class NodeServer {
                 final String command = requestMessage.get("command");
                 Command userCommand = Parser.convertToCommand(command);
 
+
+                // Wallet Requests
                 if (userCommand.equals(Command.TRANSFER)) {
                     logger.info("Transfer verification received from wallet:".concat(client.getLocalAddress().toString()));
                     Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(nodeName), nodeKeys.getPrivateKey(), nodeDataMap);
@@ -107,6 +109,13 @@ public class NodeServer {
                     logger.info("Balance or history received from wallet: ".concat(client.getLocalAddress().toString()));
                     SimpleRequest.processHistoryOrBalanceRequest(key, requestMessage, userCommand, nodeName, nodeKeys.getPrivateKey());
 
+                } else if (userCommand.equals(Command.CONFIRM)) {
+                    logger.info("Transaction Confirm received from wallet: ".concat(client.getLocalAddress().toString()));
+                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName), nodeDataMap);
+
+
+
+                // Node Requests
                 } else if (userCommand.equals(Command.NODE_CONNECT)) {
                     logger.info("Node >Connection< received from ".concat(requestMessage.get("nodename")));
                     Handshake.connectToNode(key, requestMessage, userCommand, this.nodeName, nodeKeys.getPrivateKey(), serverNodes);
@@ -123,23 +132,19 @@ public class NodeServer {
                     logger.info("Node >Verify Error< received from ".concat(requestMessage.get("nodename")));
                     Verification.processVerifyError(key, requestMessage, command, nodeDataMap);
 
-                } else if (userCommand.equals(Command.CONFIRM)) {
-                    logger.info("Transaction Confirm received from wallet: ".concat(client.getLocalAddress().toString()));
-                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName), nodeDataMap);
-
                 } else if (userCommand.equals(Command.RECORD)) {
                     logger.info("Node >Save Record< received from ".concat(requestMessage.get("nodename")));
-                    Record.processRecordRequest(key, requestMessage, nodeKeys.getPrivateKey(), nodeName);
+                    Record.processRecordRequest(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes);
 
-                } else if (userCommand.equals(Command.RECORD_OK)) {
-                    logger.info("Node >Record Ok< received from ".concat(requestMessage.get("nodename")));
-                    // TODO
+                } else if (userCommand.equals(Command.RECORD_OK) || userCommand.equals(Command.RECORD_ERR)) {
+                    logger.info("Node >Record Ok/Error< received from ".concat(requestMessage.get("nodename")));
+                    Record.processRecordResponse(key, requestMessage, nodeKeys.getPrivateKey(), nodeDataMap);
 
-                } else if (userCommand.equals(Command.RECORD_ERR)) {
-                    logger.info("Node >Record Error< received from ".concat(requestMessage.get("nodename")));
-                    // TODO
+
 
                 } else {
+                    // Wallet request incorrect command
+
                     logger.info("Incorrect verification from ".concat(client.getLocalAddress().toString()));
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid command", client.getLocalAddress().toString()));
                 }
@@ -293,7 +298,7 @@ public class NodeServer {
                 return map.containsKey("nodename");
             } else if (map.get("command").equals(Command.RECORD_OK.name())
                     || map.get("command").equals(Command.RECORD_ERR.name())) {
-                return map.containsKey("success");
+                return map.containsKey("senderkey");
             }else {
                 // Wallet
                 if (map.containsKey("key")) {
