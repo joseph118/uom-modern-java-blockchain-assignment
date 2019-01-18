@@ -1,4 +1,6 @@
-package core.message;
+package core.message.wallet;
+
+import core.message.Message;
 
 public class ErrorMessage extends Message {
     private final String receiverName;

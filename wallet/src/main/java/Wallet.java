@@ -1,21 +1,21 @@
+import communication.GlobalSignatures;
+import communication.TransactionVerification;
+import util.Resource;
+import data.Transaction;
 import security.SignatureVerifier;
-import util.ArgumentParser;
-import model.Command;
-import model.KeyHolder;
-import model.ServerNode;
+import util.Parser;
+import util.Command;
+import data.KeyHolder;
+import data.ServerNode;
 import security.KeyLoader;
 import security.SignatureBuilder;
-import util.Commands;
-import util.Conversion;
 import util.Nodes;
+import util.Response;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Base64;
 import java.util.Map;
@@ -32,10 +32,10 @@ public class Wallet {
         Map<String, String> map;
 
         try {
-            map = ArgumentParser.convertArgsToMap(args, "=");
+            map = Parser.convertArgsToMap(args, "=");
 
             if (Wallet.isMapValid(map)) {
-                final Command userCommand = Commands.convertToCommand(map.get("command").toUpperCase());
+                final Command userCommand = Parser.convertToCommand(map.get("command").toUpperCase());
                 if (!userCommand.equals(Command.OTHER)) {
                     final String username = map.get("username");
 
@@ -61,15 +61,15 @@ public class Wallet {
                         }
                     }
 
-                    final URL userKeyResource = Wallet.getResource(username, ".pfx");
+                    final URL userKeyResource = Resource.getResource(username, ".pfx");
                     if (userKeyResource != null) {
                         final String nodeName = map.get("nodename");
                         final ServerNode node = Nodes.getServerNode(nodeName);
 
                         if (node != null) {
-                            final URL nodeCertificateResource = Wallet.getResource(nodeName, ".crt");
-                            final KeyHolder keyHolder = Wallet
-                                    .getKeys(username, userPassword, userKeyResource, nodeCertificateResource);
+                            final URL nodeCertificateResource = Resource.getResource(nodeName, ".crt");
+                            final KeyHolder keyHolder = Resource
+                                    .getWalletKeys(username, userPassword, userKeyResource, nodeCertificateResource);
 
                             if (keyHolder != null) {
                                 InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
@@ -77,32 +77,10 @@ public class Wallet {
 
                                 if (client.isConnected()) {
                                     ByteBuffer buffer = ByteBuffer.allocate(1024);
-                                    StringBuilder requestBuilder = new StringBuilder();
 
-                                    final SignatureBuilder signatureBuilder = new SignatureBuilder(keyHolder.getPrivateKey());
-                                    final String encodedPublicKey = KeyLoader.encodePublicKey(keyHolder.getPublicKey());
-
-                                    requestBuilder.append("key=").append(encodedPublicKey)
-                                            .append(",command=").append(userCommand.name());
-
-                                    if (userCommand.equals(Command.TRANSFER)) {
-                                        final String amountString = Conversion.convertAmountToString(amount);
-                                        final String guid = UUID.randomUUID().toString();
-
-                                        signatureBuilder.addData(guid)
-                                                .addData(encodedPublicKey)
-                                                .addData(destinationKey)
-                                                .addData(amountString);
-
-                                        requestBuilder.append(",amount=").append(amountString)
-                                                .append(",destinationkey=").append(destinationKey)
-                                                .append(",guid=").append(guid);
-                                    }
-
-                                    requestBuilder.append(",signature=")
-                                            .append(signatureBuilder.sign());
-
-                                    client.write(ByteBuffer.wrap(requestBuilder.toString().getBytes()));
+                                    final String request =
+                                            generateWalletRequestMessage(keyHolder, userCommand, destinationKey, amount);
+                                    client.write(ByteBuffer.wrap(request.getBytes()));
 
                                     Wallet.processServerResponse(client, buffer, keyHolder, userCommand);
                                 }
@@ -116,7 +94,7 @@ public class Wallet {
                         throw new Exception("Username is incorrect.");
                     }
                 } else {
-                    throw new Exception("Command must be one of the following:\n core.balance\n core.history\n transfer");
+                    throw new Exception("Command must be one of the following:\n data.balance\n data.history\n transfer");
                 }
             } else {
                 throw new Exception("Arguments 'username', 'nodename', and 'command' are required.");
@@ -136,21 +114,39 @@ public class Wallet {
                 buffer.get(byteArray);
 
                 String response = new String(buffer.array()).trim();
-                Map<String, String> responseMap = ArgumentParser
+                Map<String, String> responseMap = Parser
                         .convertArgsToMap(response.split(","), "=");
 
-                final boolean containsError = responseMap.containsKey("error");
+                final boolean containsError = Response.isError(responseMap);
 
-                if (containsError || responseMap.isEmpty()) {
-                    final String errorMessage = containsError
-                            ? responseMap.get("error")
-                            : "Unexpected core.message between server and client.";
+                if (containsError) {
+                    final String errorMessage = responseMap.getOrDefault("error",
+                            "Unexpected core.message between server and client.");
 
                     System.out.println(errorMessage);
                 } else {
                     if (command.equals(Command.TRANSFER)) {
-                        // TODO verify the signatures of 3 nodes - this also has to be done on the node...
-                        // send it back to the node
+                        if (Response.isNodeConfirmResponseValid(responseMap)) {
+                            Transaction transaction = Transaction.mapResponseToTransaction(responseMap);
+                            final String nodeName = responseMap.get("nodename");
+                            final String signature = responseMap.get("signature");
+
+                            if (TransactionVerification.isNodeVerifiedTransactionSignatureValid(keyHolder.getNodePublicKey(), signature, nodeName, transaction)) {
+                                if (TransactionVerification.isTransactionValid(transaction)) {
+                                    String confirmationMessage = generateConfirmationMessage(keyHolder, transaction);
+
+                                    client.write(ByteBuffer.wrap(confirmationMessage.getBytes()));
+
+                                    processServerResponse(client, buffer, keyHolder, Command.CONFIRM); // Recursive
+                                } else {
+                                    System.out.println("Verification on node signatures failed.");
+                                }
+                            } else {
+                                System.out.println("Node signature is invalid.");
+                            }
+                        } else {
+                            System.out.println("Node response is invalid");
+                        }
                     } else {
                         final String payloadEncoded = responseMap.get("payload");
                         final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
@@ -178,28 +174,6 @@ public class Wallet {
                 && map.containsKey("command");
     }
 
-    private static KeyHolder getKeys(String name, String password, URL userResource, URL nodeResource) {
-
-        try {
-            final Path userPath = Paths.get(userResource.toURI());
-            final Path nodePath = Paths.get(nodeResource.toURI());
-
-            final PublicKey publicKey = KeyLoader.loadPublicKey(userPath, name, password);
-            final PrivateKey privateKey = KeyLoader.loadPrivateKey(userPath, name, password, password);
-            final PublicKey nodePublicKey = KeyLoader.loadPublicKey(nodePath);
-
-            return new KeyHolder(publicKey, privateKey, nodePublicKey);
-        } catch (Exception e) {
-            System.out.println(e.toString());
-        }
-
-        return null;
-    }
-
-    private static URL getResource(String name, String extension) {
-        return Wallet.class.getResource(name.concat(extension));
-    }
-
     private static boolean verifyNodeSignature(PublicKey nodePublicKey,
                                                String payload,
                                                String signature) {
@@ -207,5 +181,48 @@ public class Wallet {
         signatureVerifier.addData(payload);
 
         return signatureVerifier.verify(signature);
+    }
+
+
+
+    private static String generateConfirmationMessage(KeyHolder keyHolder, Transaction transaction) {
+        final String signature = GlobalSignatures.generateVerifiedTransactionSignature(keyHolder.getPrivateKey(), transaction);
+
+        return "signature=".concat(signature)
+                .concat(",command=").concat(Command.CONFIRM.name())
+                .concat(",key=").concat(KeyLoader.encodePublicKey(keyHolder.getPublicKey()))
+                .concat(",").concat(transaction.toTransactionVerifiedResponseRow());
+    }
+
+    private static String generateWalletRequestMessage(KeyHolder walletKey,
+                                                       Command userCommand,
+                                                       String destinationKey,
+                                                       float amount) {
+        StringBuilder requestBuilder = new StringBuilder();
+
+        final SignatureBuilder signatureBuilder = new SignatureBuilder(walletKey.getPrivateKey());
+        final String encodedPublicKey = KeyLoader.encodePublicKey(walletKey.getPublicKey());
+
+        requestBuilder.append("key=").append(encodedPublicKey)
+                .append(",command=").append(userCommand.name());
+
+        if (userCommand.equals(Command.TRANSFER)) {
+            final String amountString = Parser.convertAmountToString(amount);
+            final String guid = UUID.randomUUID().toString();
+
+            signatureBuilder.addData(guid)
+                    .addData(encodedPublicKey)
+                    .addData(destinationKey)
+                    .addData(amountString);
+
+            requestBuilder.append(",amount=").append(amountString)
+                    .append(",destinationkey=").append(destinationKey)
+                    .append(",guid=").append(guid);
+        }
+
+        requestBuilder.append(",signature=")
+                .append(signatureBuilder.sign());
+
+        return requestBuilder.toString();
     }
 }

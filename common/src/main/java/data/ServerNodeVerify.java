@@ -1,4 +1,4 @@
-package model;
+package data;
 
 public class ServerNodeVerify extends ServerNode {
     private final String senderKey;

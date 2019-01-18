@@ -1,4 +1,4 @@
-package core.history;
+package data.history;
 
 public class HistoryLine {
     private String transactionList;

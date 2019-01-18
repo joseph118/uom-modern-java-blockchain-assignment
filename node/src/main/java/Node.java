@@ -1,15 +1,10 @@
-import model.KeyHolder;
-import model.ServerNode;
-import util.ArgumentParser;
-import security.KeyLoader;
+import data.KeyHolder;
+import data.ServerNode;
+import util.Parser;
 import util.Nodes;
+import util.Resource;
 
-import java.net.URL;
 import java.nio.channels.Selector;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,11 +18,11 @@ public class Node {
         Map<String, String> map;
 
         try {
-            map = ArgumentParser.convertArgsToMap(args, "=");
+            map = Parser.convertArgsToMap(args, "=");
 
             if (Node.isMapArgumentsValid(map)) {
                 final String nodeName = map.get("nodename");
-                final KeyHolder nodeKeys = Node.getNodeKeys(nodeName);
+                final KeyHolder nodeKeys = Resource.getNodeKeys(nodeName);
 
                 if (nodeKeys != null) {
                     final int portNumber = Integer.parseInt(map.get("port"));
@@ -36,8 +31,8 @@ public class Node {
                             .stream().filter(serverNode -> !serverNode.getName().equals(nodeName))
                             .collect(Collectors.toList());
 
-                    NodeServer nodeServer = new NodeServer(selector, list, nodeName, nodeKeys);
-                    nodeServer.startServer(portNumber);
+                    NodeServer nodeServer = new NodeServer(list, nodeName, nodeKeys);
+                    nodeServer.startServer(portNumber, selector);
                 } else {
                     throw new Exception("Invalid node name.");
                 }
@@ -48,24 +43,6 @@ public class Node {
             System.out.println(e.toString());
             System.exit(-1);
         }
-    }
-
-    private static KeyHolder getNodeKeys(String nodeName) {
-        URL url = Node.class.getResource(nodeName.concat(".pfx"));
-
-        try {
-            Path path = Paths.get(url.toURI());
-            String password = nodeName.concat("qwerty");
-
-            PublicKey publicKey = KeyLoader.loadPublicKey(path, nodeName, password);
-            PrivateKey privateKey = KeyLoader.loadPrivateKey(path, nodeName, password, password);
-
-            return new KeyHolder(publicKey, privateKey);
-        } catch (Exception e) {
-            System.out.println(e.toString());
-        }
-
-        return null;
     }
 
     private static boolean isMapArgumentsValid(Map<String, String> map) {

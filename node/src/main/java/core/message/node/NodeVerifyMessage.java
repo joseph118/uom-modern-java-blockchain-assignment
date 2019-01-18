@@ -1,8 +1,9 @@
-package core.message;
+package core.message.node;
 
-import model.ServerNode;
+import core.message.Message;
+import data.ServerNode;
 
-public class NodeVerifyMessage extends Message  {
+public class NodeVerifyMessage extends Message {
         private final ServerNode serverNode;
         private final String senderPublicKey;
 

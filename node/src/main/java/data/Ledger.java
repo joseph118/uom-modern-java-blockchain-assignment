@@ -1,8 +1,8 @@
-package core;
+package data;
 
-import core.balance.Balance;
-import core.history.HistoryLine;
-import core.history.TransactionHistory;
+import data.balance.Balance;
+import data.history.HistoryLine;
+import data.history.TransactionHistory;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

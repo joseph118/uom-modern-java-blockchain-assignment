@@ -1,4 +1,4 @@
-package core;
+package data.verification;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,16 +6,17 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class DataHolder {
+public class VerificationRequest {
     private AtomicInteger connectionsOk;
     private AtomicInteger connectionsError;
     private final int connections;
     private Queue<String> signatureQueue;
 
-    public DataHolder(int connections) {
+    public VerificationRequest(int connections) {
         this.connectionsOk = new AtomicInteger(0);
         this.connectionsError = new AtomicInteger(0);
         this.signatureQueue = new ConcurrentLinkedQueue<>();
+
         this.connections = connections;
     }
 

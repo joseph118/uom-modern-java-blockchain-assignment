@@ -1,4 +1,4 @@
-package core.history;
+package data.history;
 
 import java.time.Instant;
 import java.time.ZoneId;

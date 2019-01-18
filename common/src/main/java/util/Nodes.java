@@ -1,6 +1,6 @@
 package util;
 
-import model.ServerNode;
+import data.ServerNode;
 
 import java.io.FileInputStream;
 import java.net.URL;
