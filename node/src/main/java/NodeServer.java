@@ -42,7 +42,7 @@ public class NodeServer {
         serverSocketChannel.configureBlocking(false);
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-        triggerConnectionToServerNodes(selector);
+        Handshake.triggerConnectionToServerNodes(selector, this.serverNodes.getNodes(nodeName), nodeName);
 
         while (running) {
             try {
@@ -89,7 +89,6 @@ public class NodeServer {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
 
-        logger.info("Read verification received.");
         try {
             final String clientData = getClientData(client);
             final Map<String, String> requestMessage = Parser
@@ -101,36 +100,43 @@ public class NodeServer {
                 Command userCommand = Parser.convertToCommand(command);
 
                 if (userCommand.equals(Command.TRANSFER)) {
-                    logger.info("Transfer verification received from ".concat(client.getLocalAddress().toString()));
-                    Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(), nodeKeys.getPrivateKey(), nodeDataMap);
+                    logger.info("Transfer verification received from wallet:".concat(client.getLocalAddress().toString()));
+                    Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(nodeName), nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.HISTORY) || userCommand.equals(Command.BALANCE)) {
-                    logger.info("Balance or history verification received from ".concat(client.getLocalAddress().toString()));
+                    logger.info("Balance or history received from wallet: ".concat(client.getLocalAddress().toString()));
                     SimpleRequest.processHistoryOrBalanceRequest(key, requestMessage, userCommand, nodeName, nodeKeys.getPrivateKey());
 
                 } else if (userCommand.equals(Command.NODE_CONNECT)) {
-                    logger.info("Node connection verification received from ".concat(requestMessage.get("nodename")));
+                    logger.info("Node >Connection< received from ".concat(requestMessage.get("nodename")));
                     Handshake.connectToNode(key, requestMessage, userCommand, this.nodeName, nodeKeys.getPrivateKey(), serverNodes);
 
                 } else if (userCommand.equals(Command.VERIFY)) {
-                    logger.info("Node verify verification received from ".concat(requestMessage.get("nodename")));
+                    logger.info("Node >Verify< received from ".concat(requestMessage.get("nodename")));
                     Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.VERIFY_OK)) {
-                    logger.info("Node verify ok received from ".concat(requestMessage.get("nodename")));
+                    logger.info("Node >Verify Ok< received from ".concat(requestMessage.get("nodename")));
                     Verification.nodeVerifyTransaction(key, requestMessage, Command.VERIFY_OK, nodeName, nodeKeys.getPrivateKey(), nodeDataMap);
 
                 } else if (userCommand.equals(Command.VERIFY_ERR)) {
-                    logger.info("Node verify error received from ".concat(requestMessage.get("nodename")));
+                    logger.info("Node >Verify Error< received from ".concat(requestMessage.get("nodename")));
                     Verification.processVerifyError(key, requestMessage, command, nodeDataMap);
 
                 } else if (userCommand.equals(Command.CONFIRM)) {
-                    logger.info("Confirm verification received from ".concat(client.getLocalAddress().toString()));
-                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName);
+                    logger.info("Transaction Confirm received from wallet: ".concat(client.getLocalAddress().toString()));
+                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName));
 
                 } else if (userCommand.equals(Command.RECORD)) {
-                    // TODO
+                    logger.info("Node >Save Record< received from ".concat(requestMessage.get("nodename")));
+                    //Record.processRecordRequest();
 
+                } else if (userCommand.equals(Command.RECORD_OK)) {
+                    logger.info("Node >Record Ok< received from ".concat(requestMessage.get("nodename")));
+                    // TODO
+                } else if (userCommand.equals(Command.RECORD_ERR)) {
+                    logger.info("Node >Record Error< received from ".concat(requestMessage.get("nodename")));
+                    // TODO
                 } else {
                     logger.info("Incorrect verification from ".concat(client.getLocalAddress().toString()));
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid command", client.getLocalAddress().toString()));
@@ -242,27 +248,6 @@ public class NodeServer {
             writeToNode(key);
         } else {
             writeToWallet(key);
-        }
-    }
-
-    private void triggerConnectionToServerNodes(Selector selector) {
-        final List<ServerNode> serverNodes = this.serverNodes.getNodes(nodeName);
-
-        if (!serverNodes.isEmpty()) {
-            serverNodes.forEach(serverNode -> {
-                logger.info("Connecting to: ".concat(serverNode.toString()));
-                try {
-                    SocketChannel nodeServer = SocketChannel.open();
-                    nodeServer.configureBlocking(false);
-                    nodeServer.connect(
-                            new InetSocketAddress(serverNode.getIp(), serverNode.getPort()));
-                    nodeServer.register(selector, SelectionKey.OP_CONNECT, serverNode);
-
-                    serverNode.setSocketChannel(nodeServer);
-                } catch (IOException e) {
-                    logger.info(nodeName.concat("Error when connecting with ").concat(serverNode.toString()));
-                }
-            });
         }
     }
 

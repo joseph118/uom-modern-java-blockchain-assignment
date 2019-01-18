@@ -10,11 +10,13 @@ import util.Resource;
 import util.Signatures;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
 import java.security.PrivateKey;
+import java.util.List;
 import java.util.Map;
 
 public class Handshake {
@@ -121,5 +123,27 @@ public class Handshake {
                 .concat(",nodename=").concat(nodeName)
                 .concat(",signature=").concat(signature)
                 .concat(",phase=").concat(phase);
+    }
+
+
+    public static void triggerConnectionToServerNodes(Selector selector,
+                                                      List<ServerNode> serverNodes,
+                                                      String nodeName) {
+        if (!serverNodes.isEmpty()) {
+            serverNodes.forEach(serverNode -> {
+                logger.info("Connecting to: ".concat(serverNode.toString()));
+                try {
+                    SocketChannel nodeServer = SocketChannel.open();
+                    nodeServer.configureBlocking(false);
+                    nodeServer.connect(
+                            new InetSocketAddress(serverNode.getIp(), serverNode.getPort()));
+                    nodeServer.register(selector, SelectionKey.OP_CONNECT, serverNode);
+
+                    serverNode.setSocketChannel(nodeServer);
+                } catch (IOException e) {
+                    logger.info(nodeName.concat(" - Error when connecting with ").concat(serverNode.toString()));
+                }
+            });
+        }
     }
 }

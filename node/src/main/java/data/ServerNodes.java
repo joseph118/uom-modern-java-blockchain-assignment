@@ -24,9 +24,10 @@ public class ServerNodes {
                 .orElse(null);
     }
 
-    public List<ServerNode> getConnectedNodes() {
+    public List<ServerNode> getConnectedNodes(String nodeName) {
         return this.serverNodes.parallelStream()
                 .filter(ServerNode::isConnected)
+                .filter(serverNode -> !serverNode.getName().equals(nodeName))
                 .collect(Collectors.toList());
     }
 

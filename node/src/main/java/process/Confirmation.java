@@ -3,6 +3,7 @@ package process;
 import communication.GlobalSignatures;
 import communication.TransactionVerification;
 import core.message.wallet.ErrorMessage;
+import data.ServerNode;
 import data.Transaction;
 import org.apache.log4j.Logger;
 import security.KeyLoader;
@@ -15,6 +16,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.List;
 import java.util.Map;
 
 public class Confirmation {
@@ -22,7 +24,12 @@ public class Confirmation {
 
     private Confirmation() {}
 
-    public static void processTransferConfirmation(SelectionKey key, Map<String, String> requestMessage, PrivateKey privateKey, String nodeName) throws IOException {
+    public static void processTransferConfirmation(SelectionKey key,
+                                                   Map<String, String> requestMessage,
+                                                   PrivateKey privateKey,
+                                                   String nodeName,
+                                                   List<ServerNode> connectedNodes ) throws IOException {
+
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
 
@@ -33,10 +40,10 @@ public class Confirmation {
 
             if (GlobalSignatures.isVerifiedTransactionSignatureValid(walletKey, signature, transaction)) {
                 if (TransactionVerification.isTransactionValid(transaction)) {
-                    // TODO --- send to nodes and save. send client ok.
                     final String message = Messages.generateNodeConfirmationMessage(privateKey, nodeName, transaction);
+                    Record.triggerTransactionConfirmation(selector, connectedNodes, nodeName, message);
 
-
+                    // TODO --- save. -- wait --- send client ok if ok.
 
                 } else {
                     // Invalid node verification
