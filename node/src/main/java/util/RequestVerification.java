@@ -16,10 +16,12 @@ public class RequestVerification {
     public static boolean waitForVerificationProcess(String userPublicKey, Map<String, NodeDataRequest> dataMap) {
         try {
             int requestCounter = 0;
-            while (!areAllRequestsReady(userPublicKey, dataMap) && requestCounter != 3) {
-                TimeUnit.SECONDS.sleep(5);
+
+            do {
+                TimeUnit.SECONDS.sleep(3);
                 requestCounter++;
-            }
+            } while (!areAllRequestsReady(userPublicKey, dataMap) && requestCounter != 3);
+
             // TODO once done update... and clear... also add checks on threads not to blow up
         } catch (InterruptedException ex) {
             logger.error(ex);
@@ -31,10 +33,11 @@ public class RequestVerification {
     }
 
     private static boolean areAllRequestsReady(String userPublicKey, Map<String, NodeDataRequest> dataMap) {
-        NodeDataRequest nodeDataRequest = dataMap.get(userPublicKey);
+        final NodeDataRequest nodeDataRequest = dataMap.get(userPublicKey);
+        final int totalConnectionsDone = nodeDataRequest.getSuccessfulResponseCount() + nodeDataRequest.getErrorResponseCount();
 
         logger.info(nodeDataRequest.toString());
-        final int totalConnectionsDone = nodeDataRequest.getSuccessfulResponseCount() + nodeDataRequest.getErrorResponseCount();
+
         return totalConnectionsDone == nodeDataRequest.getTotalConnectionsMade();
     }
 

@@ -6,7 +6,11 @@ import data.history.TransactionHistory;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -23,22 +27,18 @@ public class Ledger {
     }
 
     public static boolean addTransaction(Transaction transaction, String nodeName) {
-        final String row = transaction.toCsvRow();
-        final File ledgerFile = new File(ClassLoader.getSystemResource(nodeName.concat(LEDGER_EXTENSION)).getFile());
+        final String newLine = System.lineSeparator();
+        final String row = transaction.toCsvRow().concat(newLine);
 
-        try ( BufferedReader reader = new BufferedReader(new StringReader(row));
-              PrintWriter writer = new PrintWriter(new FileWriter(ledgerFile)) ) {
+        try {
+            URL ledgerUrl = ClassLoader.getSystemResource(nodeName.concat(LEDGER_EXTENSION));
 
+            Files.write(Paths.get(ledgerUrl.toURI()), row.getBytes(), StandardOpenOption.APPEND);
 
-
-            reader.lines().forEach(s -> {
-                logger.info("Added: ".concat(s));
-                writer.println(s);
-            });
+            logger.info("Added: ".concat(row));
 
             return true;
-
-        } catch (Exception e) {
+        }catch (Exception e) {
             System.out.println(e.toString());
         }
 

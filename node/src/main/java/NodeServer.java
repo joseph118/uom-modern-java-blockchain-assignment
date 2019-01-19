@@ -5,7 +5,6 @@ import core.message.node.NodeMessage;
 import core.message.wallet.SuccessMessage;
 import process.*;
 import data.NodeDataRequest;
-import exception.ArgumentsNotFoundException;
 import data.Command;
 import org.apache.log4j.Logger;
 import util.*;

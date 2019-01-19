@@ -132,9 +132,9 @@ public class Verification {
             if (Signatures.verifyNodeSignature(nodePublicKey, command, nodeName, signature)) {
                 final ServerNodeVerify serverNodeVerify = (ServerNodeVerify) key.attachment();
                 final SocketChannel nodeClient = (SocketChannel) key.channel();
-                logger.info("incrementing");
+
                 nodeDataRequest.get(serverNodeVerify.getSenderKey()).incrementErrorResponse();
-                logger.info("register...");
+
                 nodeClient.register(selector, SelectionKey.OP_READ, new ServerNode(serverNodeVerify.getName(),
                         serverNodeVerify.getIp(),
                         serverNodeVerify.getPort()));

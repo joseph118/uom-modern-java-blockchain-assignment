@@ -2,7 +2,6 @@ package process;
 
 import communication.GlobalSignatures;
 import core.message.node.NodeMessage;
-import core.message.wallet.ErrorMessage;
 import data.*;
 import org.apache.log4j.Logger;
 import security.KeyLoader;
