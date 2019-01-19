@@ -72,19 +72,25 @@ public class Wallet {
                                     .getWalletKeys(username, userPassword, userKeyResource, nodeCertificateResource);
 
                             if (keyHolder != null) {
-                                InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
-                                SocketChannel client = SocketChannel.open(nodeAddress);
+                                final String walletKey = KeyLoader.encodePublicKey(keyHolder.getPublicKey());
 
-                                if (client.isConnected()) {
-                                    ByteBuffer buffer = ByteBuffer.allocate(2048);
+                                if (!walletKey.equals(destinationKey)) {
+                                    InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
+                                    SocketChannel client = SocketChannel.open(nodeAddress);
 
-                                    final String request =
-                                            generateWalletRequestMessage(keyHolder, userCommand, destinationKey, amount);
-                                    System.out.println(request);
+                                    if (client.isConnected()) {
+                                        ByteBuffer buffer = ByteBuffer.allocate(2048);
 
-                                    client.write(ByteBuffer.wrap(request.getBytes()));
+                                        final String request =
+                                                generateWalletRequestMessage(keyHolder, userCommand, destinationKey, amount);
+                                        System.out.println(request);
 
-                                    Wallet.processServerResponse(client, buffer, keyHolder, userCommand);
+                                        client.write(ByteBuffer.wrap(request.getBytes()));
+
+                                        Wallet.processServerResponse(client, buffer, keyHolder, userCommand);
+                                    }
+                                } else {
+                                    throw new Exception("Cannot transfer money to your self.");
                                 }
                             } else {
                                 throw new Exception("Password is incorrect.");
