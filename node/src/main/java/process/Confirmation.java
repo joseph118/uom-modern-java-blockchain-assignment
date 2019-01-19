@@ -51,7 +51,6 @@ public class Confirmation {
                     Record.triggerTransactionConfirmation(selector, connectedNodes, nodeName, nodeMessage, nodeDataRequestMap, transaction.getSenderPublicKey());
 
                     if (RequestVerification.waitForVerificationProcess(transaction.getSenderPublicKey(), nodeDataRequestMap)) {
-                        // TODO Synchronized block
                         Ledger.addTransaction(transaction, nodeName);
 
                         final String walletMessage = Messages.generateWalletConfirmationMessage(privateKey, nodeName, transaction);

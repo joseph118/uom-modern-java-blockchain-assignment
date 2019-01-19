@@ -41,7 +41,7 @@ public class Record {
             final String message;
 
             if (GlobalSignatures.isRecordSignatureValid(senderNodePublicKey, signature, transaction)) {
-                Ledger.addTransaction(transaction, nodeName); // TODO check sync block
+                Ledger.addTransaction(transaction, nodeName);
 
                 message = Messages.generateNodeRecordOkMessage(privateKey, transaction, nodeName);
             } else {
