@@ -2,6 +2,8 @@ package core.message.wallet;
 
 import core.message.Message;
 
+import java.util.Base64;
+
 public class ErrorMessage extends Message {
     private final String receiverName;
     public ErrorMessage(String message, String receiverName) {
@@ -15,6 +17,9 @@ public class ErrorMessage extends Message {
     }
 
     public String getErrorMessage() {
-        return "error=".concat(getMessage());
+        return "error=".concat(
+                new String(
+                        Base64.getEncoder().encode(getMessage().getBytes())
+                ));
     }
 }

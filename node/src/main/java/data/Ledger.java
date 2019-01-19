@@ -26,7 +26,7 @@ public class Ledger {
     private Ledger() {
     }
 
-    public static boolean addTransaction(Transaction transaction, String nodeName) {
+    public static synchronized boolean addTransaction(Transaction transaction, String nodeName) {
         final String newLine = System.lineSeparator();
         final String row = transaction.toCsvRow().concat(newLine);
 

@@ -79,6 +79,7 @@ public class Verification {
                                     verifyRequest.getHash(),
                                     nodeName);
 
+                            nodeDataRequest.put(verifyRequest.getSenderKey(), new NodeDataRequest(1));
                             nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                         } else {
                             final String message = Messages
@@ -90,8 +91,10 @@ public class Verification {
                         final String signature = verifyRequest.getNodeName()
                                 .concat(":").concat(verifyRequest.getSignature());
 
-                        nodeDataRequest.get(verifyRequest.getSenderKey())
-                                .addDataAndIncrementOkResponse(signature);
+                        final NodeDataRequest dataRequest = nodeDataRequest.get(verifyRequest.getSenderKey());
+                        if (dataRequest != null) {
+                            dataRequest.addDataAndIncrementOkResponse(signature);
+                        }
 
                         nodeClient.register(selector, SelectionKey.OP_READ, serverNode);
                     }
@@ -133,7 +136,10 @@ public class Verification {
                 final ServerNodeVerify serverNodeVerify = (ServerNodeVerify) key.attachment();
                 final SocketChannel nodeClient = (SocketChannel) key.channel();
 
-                nodeDataRequest.get(serverNodeVerify.getSenderKey()).incrementErrorResponse();
+                final NodeDataRequest dataRequest = nodeDataRequest.get(serverNodeVerify.getSenderKey());
+                if (dataRequest != null) {
+                    dataRequest.incrementErrorResponse();
+                }
 
                 nodeClient.register(selector, SelectionKey.OP_READ, new ServerNode(serverNodeVerify.getName(),
                         serverNodeVerify.getIp(),
@@ -177,7 +183,11 @@ public class Verification {
             } catch (ClosedChannelException ex) {
 
                 logger.error(serverNode.toString().concat(" - Error while sending request"));
-                nodeDataRequestMap.get(senderKey).incrementErrorResponse();
+
+                NodeDataRequest requestData = nodeDataRequestMap.get(senderKey);
+                if (requestData != null) {
+                    requestData.incrementErrorResponse();
+                }
             }
         });
     }

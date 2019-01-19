@@ -75,6 +75,8 @@ public class Wallet {
                                 final String walletKey = KeyLoader.encodePublicKey(keyHolder.getPublicKey());
 
                                 if (!walletKey.equals(destinationKey)) {
+                                    System.out.println("\n Sending Request... \n");
+
                                     InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
                                     SocketChannel client = SocketChannel.open(nodeAddress);
 
@@ -83,7 +85,6 @@ public class Wallet {
 
                                         final String request =
                                                 generateWalletRequestMessage(keyHolder, userCommand, destinationKey, amount);
-                                        System.out.println(request);
 
                                         client.write(ByteBuffer.wrap(request.getBytes()));
 
@@ -129,10 +130,11 @@ public class Wallet {
                 final boolean containsError = Response.isError(responseMap);
 
                 if (containsError) {
-                    final String errorMessage = responseMap.getOrDefault("error",
-                            "Unexpected core.message between server and client.");
+                    final String errorMessage = responseMap.get("error");
 
-                    System.out.println(errorMessage);
+                    System.out.println(errorMessage != null
+                            ? new String(Base64.getDecoder().decode(errorMessage))
+                            : "Unexpected core.message between server and client.");
                 } else {
                     if (command.equals(Command.TRANSFER)) {
                         if (Response.isNodeConfirmResponseValid(responseMap)) {
@@ -162,7 +164,7 @@ public class Wallet {
                         final String signature = responseMap.get("signature");
 
                         System.out.println( Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)
-                                ? payload
+                                ? payload.replace(',', '\n')
                                 : "Invalid signature from the server." );
 
                         client.close();
@@ -194,9 +196,6 @@ public class Wallet {
 
     private static String generateConfirmationMessage(KeyHolder keyHolder, Transaction transaction) {
         final String signature = GlobalSignatures.generateVerifiedTransactionSignature(keyHolder.getPrivateKey(), transaction);
-
-        System.out.println(transaction);
-        System.out.println(transaction.toTransactionVerifiedResponseRow());
 
         return "signature=".concat(signature)
                 .concat(",command=").concat(Command.CONFIRM.name())

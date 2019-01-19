@@ -45,8 +45,6 @@ public class Confirmation {
             final String signature = requestMessage.get("signature");
             final Transaction transaction = Transaction.mapResponseToTransaction(requestMessage, "signature");
 
-            logger.info(transaction);
-            logger.info(transaction.toTransactionConfirmationResponseRow());
             if (GlobalSignatures.isVerifiedTransactionSignatureValid(walletKey, signature, transaction)) {
                 if (TransactionVerification.isTransactionValid(transaction)) {
                     final String nodeMessage = Messages.generateNodeConfirmationMessage(privateKey, nodeName, transaction);
@@ -61,6 +59,8 @@ public class Confirmation {
                     } else {
                         client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Error while adding new record", client.getLocalAddress().toString()));
                     }
+
+                    nodeDataRequestMap.remove(transaction.getSenderPublicKey());
                 } else {
                     // Invalid node verification
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid node verifications", client.getLocalAddress().toString()));

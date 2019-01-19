@@ -116,7 +116,6 @@ public class NodeServer {
                 final String command = requestMessage.get("command");
                 Command userCommand = Parser.convertToCommand(command);
 
-
                 // Wallet Requests
                 if (userCommand.equals(Command.TRANSFER)) {
                     logger.info("Transfer verification received from wallet:".concat(client.getLocalAddress().toString()));
@@ -151,7 +150,7 @@ public class NodeServer {
 
                 } else if (userCommand.equals(Command.RECORD)) {
                     logger.info("Node >Save Record< received from ".concat(requestMessage.get("nodename")));
-                    Record.processRecordRequest(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes);
+                    Record.processRecordRequest(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes, nodeDataMap);
 
                 } else if (userCommand.equals(Command.RECORD_OK) || userCommand.equals(Command.RECORD_ERR)) {
                     logger.info("Node >Record Ok/Error< received from ".concat(requestMessage.get("nodename")));

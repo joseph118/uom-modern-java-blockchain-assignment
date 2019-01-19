@@ -127,7 +127,7 @@ public class Transaction {
      */
     public String toCsvRow() {
         String timestamp = String.valueOf(this.timestamp);
-        String transactionAmount = String.valueOf(this.transactionAmount);
+        String transactionAmount = Parser.convertAmountToString(this.transactionAmount);
 
         return timestamp.concat(",")
                 .concat(hash).concat(",")

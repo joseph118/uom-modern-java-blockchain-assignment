@@ -21,8 +21,6 @@ public class RequestVerification {
                 TimeUnit.SECONDS.sleep(3);
                 requestCounter++;
             } while (!areAllRequestsReady(userPublicKey, dataMap) && requestCounter != 3);
-
-            // TODO once done update... and clear... also add checks on threads not to blow up
         } catch (InterruptedException ex) {
             logger.error(ex);
 
@@ -34,11 +32,18 @@ public class RequestVerification {
 
     private static boolean areAllRequestsReady(String userPublicKey, Map<String, NodeDataRequest> dataMap) {
         final NodeDataRequest nodeDataRequest = dataMap.get(userPublicKey);
-        final int totalConnectionsDone = nodeDataRequest.getSuccessfulResponseCount() + nodeDataRequest.getErrorResponseCount();
 
-        logger.info(nodeDataRequest.toString());
+        if (nodeDataRequest != null) {
+            final int totalConnectionsDone = nodeDataRequest.getSuccessfulResponseCount() + nodeDataRequest.getErrorResponseCount();
 
-        return totalConnectionsDone == nodeDataRequest.getTotalConnectionsMade();
+            logger.info(nodeDataRequest.toString());
+
+            return totalConnectionsDone == nodeDataRequest.getTotalConnectionsMade();
+        } else {
+            logger.error("Request information not found.");
+        }
+
+        return true;
     }
 
 }
