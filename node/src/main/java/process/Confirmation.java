@@ -58,12 +58,14 @@ public class Confirmation {
                     } else {
                         client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Error while adding new record", client.getLocalAddress().toString()));
                     }
-
-                    nodeDataRequestMap.remove(transaction.getSenderPublicKey());
                 } else {
                     // Invalid node verification
                     client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid node verifications", client.getLocalAddress().toString()));
                 }
+
+                nodeDataRequestMap.remove(transaction.getSenderPublicKey());
+                nodeDataRequestMap.remove(transaction.getRecipientPublicKey());
+
             } else {
                 // Invalid signature
                 client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid signature", client.getLocalAddress().toString()));
@@ -72,7 +74,5 @@ public class Confirmation {
             // Invalid response
             client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid response", client.getLocalAddress().toString()));
         }
-
-        nodeDataRequestMap.remove(senderKey);
     }
 }

@@ -51,10 +51,8 @@ public class Verification {
                     verifyRequest.getHash(),
                     verifyRequest.getNodeName())) {
 
-
                 final float amount = Float.parseFloat(verifyRequest.getAmountString());
                 final float userBalance = Ledger.getUserBalance(nodeName, verifyRequest.getSenderKey()).calculateBalance();
-
 
                 if (userBalance >= amount) {
                     if (command.equals(Command.VERIFY)) {
@@ -67,7 +65,9 @@ public class Verification {
                                 verifyRequest.getNodeName());
 
 
-                        if (verifyRequest.getHash().equals(newHash)) {
+                        if (verifyRequest.getHash().equals(newHash)
+                                && !nodeDataRequest.containsKey(verifyRequest.getSenderKey())
+                                && !nodeDataRequest.containsKey(verifyRequest.getReceiverKey())) {
                             final String message = Messages.generateNodeVerifyMessage(privateKey,
                                     Command.VERIFY_OK.name(),
                                     verifyRequest.getGuid(),
@@ -80,6 +80,7 @@ public class Verification {
                                     nodeName);
 
                             nodeDataRequest.put(verifyRequest.getSenderKey(), new NodeDataRequest(1));
+                            nodeDataRequest.put(verifyRequest.getReceiverKey(), new NodeDataRequest(1));
                             nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                         } else {
                             final String message = Messages

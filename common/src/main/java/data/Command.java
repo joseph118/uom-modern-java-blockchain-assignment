@@ -12,6 +12,4 @@ public enum Command {
     CONFIRM, CONFIRM_OK,
 
     RECORD, RECORD_OK, RECORD_ERR
-
-
 }

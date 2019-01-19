@@ -53,7 +53,7 @@ public class Transfer {
 
         if (isKeyValid(destinationKey)) {
             if (Signatures.verifyWalletTransferSignature(clientPublicKey, base64PublicKey, signature, destinationKey, guid, stringAmount)) {
-                if (!dataMap.containsKey(base64PublicKey)) {
+                if (!dataMap.containsKey(base64PublicKey) && !dataMap.containsKey(destinationKey)) {
                     final float amount = Float.parseFloat(stringAmount);
                     final float userBalance = Ledger.getUserBalance(nodeName, base64PublicKey).calculateBalance();
 

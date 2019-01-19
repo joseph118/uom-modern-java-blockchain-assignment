@@ -12,6 +12,7 @@ import security.SignatureBuilder;
 import util.Nodes;
 import util.Response;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -75,7 +76,7 @@ public class Wallet {
                                 final String walletKey = KeyLoader.encodePublicKey(keyHolder.getPublicKey());
 
                                 if (!walletKey.equals(destinationKey)) {
-                                    System.out.println("\n Sending Request... \n");
+                                    System.out.println("\nSending Request... \n");
 
                                     InetSocketAddress nodeAddress = new InetSocketAddress(node.getIp(), node.getPort());
                                     SocketChannel client = SocketChannel.open(nodeAddress);
@@ -116,65 +117,82 @@ public class Wallet {
 
     private static void processServerResponse(SocketChannel client, ByteBuffer buffer, KeyHolder keyHolder, Command command) {
         try {
-            int bytesRead = client.read(buffer);
-            if (bytesRead > 0) {
-                byte[] byteArray = new byte[bytesRead];
-                buffer.flip();
-                buffer.get(byteArray);
+            String response = readClientData(client, buffer);
+            Map<String, String> responseMap = Parser
+                    .convertArgsToMap(response.split(","), "=");
 
-                String response = new String(buffer.array()).trim();
-                Map<String, String> responseMap = Parser
-                        .convertArgsToMap(response.split(","), "=");
-                buffer.clear();
+            final boolean containsError = Response.isError(responseMap);
 
-                final boolean containsError = Response.isError(responseMap);
+            if (containsError) {
+                final String errorMessage = responseMap.get("error");
 
-                if (containsError) {
-                    final String errorMessage = responseMap.get("error");
-
-                    System.out.println(errorMessage != null
-                            ? new String(Base64.getDecoder().decode(errorMessage))
-                            : "Unexpected core.message between server and client.");
-                } else {
-                    if (command.equals(Command.TRANSFER)) {
-                        if (Response.isNodeConfirmResponseValid(responseMap)) {
-                            Transaction transaction = Transaction.mapResponseToTransaction(responseMap);
-                            final String nodeName = responseMap.get("nodename");
-                            final String signature = responseMap.get("signature");
-
-                            if (TransactionVerification.isNodeVerifiedTransactionSignatureValid(keyHolder.getNodePublicKey(), signature, nodeName, transaction)) {
-                                if (TransactionVerification.isTransactionValid(transaction)) {
-                                    String confirmationMessage = generateConfirmationMessage(keyHolder, transaction);
-
-                                    client.write(ByteBuffer.wrap(confirmationMessage.getBytes()));
-
-                                    processServerResponse(client, buffer, keyHolder, Command.CONFIRM); // Recursive
-                                } else {
-                                    System.out.println("Verification on node signatures failed.");
-                                }
-                            } else {
-                                System.out.println("Node signature is invalid.");
-                            }
-                        } else {
-                            System.out.println("Node response is invalid");
-                        }
-                    } else {
-                        final String payloadEncoded = responseMap.get("payload");
-                        final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
+                System.out.println(errorMessage != null
+                        ? new String(Base64.getDecoder().decode(errorMessage))
+                        : "Unexpected core.message between server and client.");
+            } else {
+                if (command.equals(Command.TRANSFER)) {
+                    if (Response.isNodeConfirmResponseValid(responseMap)) {
+                        Transaction transaction = Transaction.mapResponseToTransaction(responseMap);
+                        final String nodeName = responseMap.get("nodename");
                         final String signature = responseMap.get("signature");
 
-                        System.out.println( Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)
-                                ? payload.replace(',', '\n')
-                                : "Invalid signature from the server." );
+                        if (TransactionVerification.isNodeVerifiedTransactionSignatureValid(keyHolder.getNodePublicKey(), signature, nodeName, transaction)) {
+                            if (TransactionVerification.isTransactionValid(transaction)) {
+                                String confirmationMessage = generateConfirmationMessage(keyHolder, transaction);
 
-                        client.close();
+                                client.write(ByteBuffer.wrap(confirmationMessage.getBytes()));
+
+                                processServerResponse(client, buffer, keyHolder, Command.CONFIRM); // Recursive
+                            } else {
+                                System.out.println("Verification on node signatures failed.");
+                            }
+                        } else {
+                            System.out.println("Node signature is invalid.");
+                        }
+                    } else {
+                        System.out.println("Node response is invalid");
                     }
+                } else {
+                    final String payloadEncoded = responseMap.get("payload");
+                    final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
+                    final String signature = responseMap.get("signature");
+
+                    System.out.println(payload);
+                    System.out.println("1");
+
+
+                    System.out.println( Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)
+                            ? payload.replace(',', '\n')
+                            : "Invalid signature from the server." );
+
+                    buffer.clear();
+                    client.close();
                 }
             }
         } catch (Exception e) {
             System.out.println(e);
             System.exit(-1);
         }
+    }
+
+    private static String readClientData(SocketChannel client, ByteBuffer buffer) throws IOException {
+        int bytesRead = client.read(buffer);
+        String data = "";
+
+        if (bytesRead > 0) {
+            byte[] byteArray = new byte[bytesRead];
+            buffer.flip();
+            buffer.get(byteArray);
+
+            data = new String(buffer.array()).trim();
+
+            if (bytesRead == 2048) {
+                buffer.clear();
+                data = data.concat(readClientData(client, buffer));
+            }
+        }
+
+        return data;
     }
 
     private static boolean isMapValid(Map<String, String> map) {
@@ -186,8 +204,11 @@ public class Wallet {
     private static boolean verifyNodeSignature(PublicKey nodePublicKey,
                                                String payload,
                                                String signature) {
+
+        System.out.println(2);
         SignatureVerifier signatureVerifier = new SignatureVerifier(nodePublicKey);
         signatureVerifier.addData(payload);
+        System.out.println(3);
 
         return signatureVerifier.verify(signature);
     }

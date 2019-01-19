@@ -10,7 +10,6 @@ import util.Resource;
 import util.Signatures;
 
 import java.io.IOException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -50,6 +49,7 @@ public class Record {
             }
 
             dataMap.remove(transaction.getSenderPublicKey());
+            dataMap.remove(transaction.getRecipientPublicKey());
             client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
         } else {
             key.cancel();

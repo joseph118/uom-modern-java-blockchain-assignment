@@ -225,7 +225,7 @@ public class NodeServer {
         try {
             writeToClient(message.getMessage(), client);
         } catch (IOException ex) {
-            logger.info("System interrupted while writing verification to node: ".concat(message.getServerNode().getName())
+            logger.info("System interrupted while writing to node: ".concat(message.getServerNode().getName())
                     .concat(". \n").concat(ex.toString()));
         }
 
@@ -259,7 +259,7 @@ public class NodeServer {
         try {
             writeToClient(messageResult, client);
         } catch (IOException ex) {
-            logger.info("System interrupted while writing verification to wallet: ".concat(receiverName).concat(". \n")
+            logger.info("System interrupted while writing to wallet: ".concat(receiverName).concat(". \n")
                     .concat(ex.toString()));
             key.cancel();
         }
@@ -283,7 +283,7 @@ public class NodeServer {
 
     private void writeToClient(String message, SocketChannel client) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
-
+        // TODO is it sending all the data? or not receiving? check..
         while (buffer.remaining() > 0) {
             client.write(buffer);
         }
