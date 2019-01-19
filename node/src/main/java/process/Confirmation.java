@@ -45,6 +45,8 @@ public class Confirmation {
             final String signature = requestMessage.get("signature");
             final Transaction transaction = Transaction.mapResponseToTransaction(requestMessage, "signature");
 
+            logger.info(transaction);
+            logger.info(transaction.toTransactionConfirmationResponseRow());
             if (GlobalSignatures.isVerifiedTransactionSignatureValid(walletKey, signature, transaction)) {
                 if (TransactionVerification.isTransactionValid(transaction)) {
                     final String nodeMessage = Messages.generateNodeConfirmationMessage(privateKey, nodeName, transaction);

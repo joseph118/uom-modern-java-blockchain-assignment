@@ -70,6 +70,18 @@ public class Parser {
                 return Command.VERIFY;
             case "VERIFY_OK":
                 return Command.VERIFY_OK;
+            case "VERIFY_ERR":
+                return Command.VERIFY_ERR;
+            case "CONFIRM":
+                return Command.CONFIRM;
+            case "CONFIRM_OK":
+                return Command.CONFIRM_OK;
+            case "RECORD":
+                return Command.RECORD;
+            case "RECORD_OK":
+                return Command.RECORD_OK;
+            case "RECORD_ERR":
+                return Command.RECORD_ERR;
         }
 
         return Command.OTHER;

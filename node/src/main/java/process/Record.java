@@ -42,14 +42,12 @@ public class Record {
             final String message;
 
             if (GlobalSignatures.isRecordSignatureValid(senderNodePublicKey, signature, transaction)) {
-                // TODO Syncronize block
-                Ledger.addTransaction(transaction, nodeName);
+                Ledger.addTransaction(transaction, nodeName); // TODO check sync block
 
-                message = Messages.generateNodeRecordOkMessage(privateKey, transaction);
+                message = Messages.generateNodeRecordOkMessage(privateKey, transaction, nodeName);
             } else {
                 // Invalid signature
-                message = Messages.generateNodeRecordErrorMessage(privateKey, transaction);
-                client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                message = Messages.generateNodeRecordErrorMessage(privateKey, transaction, nodeName);
             }
 
             client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
@@ -57,7 +55,6 @@ public class Record {
             key.cancel();
             key.channel().close();
         }
-
     }
 
     public static void triggerTransactionConfirmation(Selector selector,
@@ -88,6 +85,9 @@ public class Record {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
         final ServerNode serverNode = (ServerNode) key.attachment();
+
+        logger.info(requestMessage);
+
 
         final Path path = Resource.getNodeCertificate(senderNodeName);
         if (path != null) {

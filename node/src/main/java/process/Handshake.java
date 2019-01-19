@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.security.PrivateKey;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 public class Handshake {
     private final static Logger logger = Logger.getLogger(Handshake.class);
@@ -52,7 +54,7 @@ public class Handshake {
         }
     }
 
-    public static void connectToServerNode(SelectionKey key, String nodeName, PrivateKey privateKey) throws IOException {
+    public static void connectToServerNode(SelectionKey key, String nodeName, PrivateKey privateKey, ExecutorService executor) {
         SocketChannel nodeClient = (SocketChannel) key.channel();
         Selector selector = key.selector();
         ServerNode serverNode = (ServerNode) key.attachment();
@@ -64,12 +66,18 @@ public class Handshake {
 
                 logger.info("Connected to: ".concat(serverNode.toString().concat(", Performing handshake.")));
 
-                final String message = generateNodeHandshakeMessage(privateKey, nodeName, "handshake_1");
-                nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                executor.submit(() -> {
+                    final String message = generateNodeHandshakeMessage(privateKey, nodeName, "handshake_1");
+                    try {
+                        nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                    } catch (Exception e) {
+                        logger.error(e);
+                    }
+                });
             }
         } catch (Exception e) {
             key.cancel();
-            nodeClient.close();
+            closeConnection(nodeClient);
 
             logger.info("Unable to to connect to: ".concat(serverNode.toString()));
         }
@@ -110,7 +118,7 @@ public class Handshake {
                 client.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, node));
             }
         } else {
-            client.close();
+            closeConnection(client);
             key.cancel();
         }
     }
@@ -144,6 +152,14 @@ public class Handshake {
                     logger.info(nodeName.concat(" - Error when connecting with ").concat(serverNode.toString()));
                 }
             });
+        }
+    }
+
+    private static void closeConnection(SocketChannel socketChannel) {
+        try {
+            socketChannel.close();
+        } catch (IOException e) {
+            logger.error(e.toString());
         }
     }
 }

@@ -76,10 +76,12 @@ public class Wallet {
                                 SocketChannel client = SocketChannel.open(nodeAddress);
 
                                 if (client.isConnected()) {
-                                    ByteBuffer buffer = ByteBuffer.allocate(1024);
+                                    ByteBuffer buffer = ByteBuffer.allocate(2048);
 
                                     final String request =
                                             generateWalletRequestMessage(keyHolder, userCommand, destinationKey, amount);
+                                    System.out.println(request);
+
                                     client.write(ByteBuffer.wrap(request.getBytes()));
 
                                     Wallet.processServerResponse(client, buffer, keyHolder, userCommand);
@@ -116,6 +118,7 @@ public class Wallet {
                 String response = new String(buffer.array()).trim();
                 Map<String, String> responseMap = Parser
                         .convertArgsToMap(response.split(","), "=");
+                buffer.clear();
 
                 final boolean containsError = Response.isError(responseMap);
 
@@ -152,18 +155,16 @@ public class Wallet {
                         final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
                         final String signature = responseMap.get("signature");
 
-                        if (Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)) {
-                            System.out.println(payload);
-                        } else {
-                            System.out.println("Invalid signature from the server.");
-                        }
+                        System.out.println( Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)
+                                ? payload
+                                : "Invalid signature from the server." );
+
+                        client.close();
                     }
                 }
-
-                client.close();
             }
         } catch (Exception e) {
-            System.out.println(e.toString());
+            System.out.println(e);
             System.exit(-1);
         }
     }
@@ -187,6 +188,9 @@ public class Wallet {
 
     private static String generateConfirmationMessage(KeyHolder keyHolder, Transaction transaction) {
         final String signature = GlobalSignatures.generateVerifiedTransactionSignature(keyHolder.getPrivateKey(), transaction);
+
+        System.out.println(transaction);
+        System.out.println(transaction.toTransactionVerifiedResponseRow());
 
         return "signature=".concat(signature)
                 .concat(",command=").concat(Command.CONFIRM.name())

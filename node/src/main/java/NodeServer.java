@@ -1,3 +1,4 @@
+import core.message.Message;
 import data.*;
 import core.message.wallet.ErrorMessage;
 import core.message.node.NodeMessage;
@@ -15,14 +16,18 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class NodeServer {
     final static Logger logger = Logger.getLogger(NodeServer.class);
 
-    private final ServerNodes serverNodes;
     private final String nodeName;
     private final KeyHolder nodeKeys;
-    private final Map<String, NodeDataRequest> nodeDataMap;
+
+    private volatile ServerNodes serverNodes;
+    private volatile Map<String, NodeDataRequest> nodeDataMap;
+
     private boolean running;
 
     public NodeServer(List<ServerNode> serverNodes, String nodeName, KeyHolder nodeKeys) {
@@ -36,6 +41,8 @@ public class NodeServer {
 
     public void startServer(int portNumber, Selector selector) throws IOException {
         setRunning(true);
+
+        ExecutorService executor = Executors.newFixedThreadPool(3);
 
         final ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.socket().bind(new InetSocketAddress(portNumber));
@@ -53,26 +60,37 @@ public class NodeServer {
 
                 while (iterator.hasNext()) {
                     final SelectionKey key = iterator.next();
+                    iterator.remove();
 
                     if (key.isValid() && key.isAcceptable()) {
                         // a connection was accepted by a ServerSocketChannel.
                         registerClient(key);
 
                     } else if (key.isValid() && key.isConnectable()) {
-                        Handshake.connectToServerNode(key, this.nodeName, nodeKeys.getPrivateKey());
+                        Handshake.connectToServerNode(key, this.nodeName, nodeKeys.getPrivateKey(), executor);
 
                     } else if (key.isValid() && key.isWritable()) {
-                        logger.info("write req received");
                         // a channel is ready for writing
-                        if (key.attachment() != null) {
-                            processWriteRequest(key);
+                        if (key.attachment() instanceof NodeMessage) {
+                            writeToNode(key);
+                        } else if (key.attachment() instanceof Message) {
+                            writeToWallet(key);
                         }
                     } else if (key.isValid() && key.isReadable()) {
                         // a channel is ready for reading
-                        // TODO Processing has to go to another thread/s
-                        processRequest(key);
+                        try {
+                            final String clientData = getClientData((SocketChannel) key.channel());
+                            key.interestOps(SelectionKey.OP_WRITE);
+
+                            executor.submit(() ->
+                                    processRequest(key, clientData));
+
+                        } catch (Exception e) {
+                            logger.error(e);
+                            key.cancel();
+                        }
                     }
-                    iterator.remove();
+
                 }
             } catch (Exception ex) {
                 logger.info("Unexpected error. \n".concat(ex.toString()));
@@ -86,12 +104,11 @@ public class NodeServer {
         this.running = running;
     }
 
-    private void processRequest(SelectionKey key) throws IOException, ArgumentsNotFoundException {
+    private void processRequest(SelectionKey key, String clientData) {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
 
         try {
-            final String clientData = getClientData(client);
             final Map<String, String> requestMessage = Parser
                     .convertArgsToMap(clientData.split(","), "=");
             logger.info("Received: ".concat(requestMessage.toString()));
@@ -153,15 +170,18 @@ public class NodeServer {
                 logger.info("Invalid arguments from ".concat(client.getLocalAddress().toString()));
                 client.register(selector, SelectionKey.OP_WRITE, new ErrorMessage("Invalid arguments", client.getLocalAddress().toString()));
             }
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             if (key.attachment() != null) {
                 // Node has been disconnected
                 ServerNode serverNode = (ServerNode) key.attachment();
-                key.channel().close();
+                try {
+                    key.channel().close();
+                } catch (Exception e) {}
                 key.cancel();
                 serverNodes.updateNodeConnection(serverNode.getName(), false, null);
 
                 logger.info("Node: ".concat(serverNode.getName().concat(", has been disconnected.")));
+                logger.error(ex);
             }
         }
     }
@@ -169,7 +189,7 @@ public class NodeServer {
     private String getClientData(SocketChannel client) throws IOException {
         String message;
 
-        ByteBuffer readBuffer = ByteBuffer.allocate(1048);
+        ByteBuffer readBuffer = ByteBuffer.allocate(2048);
 
         client.read(readBuffer);
         message = new String(readBuffer.array()).trim();
@@ -178,17 +198,25 @@ public class NodeServer {
         return message;
     }
 
-    private void registerClient(SelectionKey key) throws IOException {
+    private void registerClient(SelectionKey key) {
         final Selector selector = key.selector();
         final ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
-        final SocketChannel client = serverSocketChannel.accept();
-        client.configureBlocking(false);
-        client.register(selector, SelectionKey.OP_READ);
 
-        logger.info("Accepted connection: ".concat(client.getLocalAddress().toString()));
+        try {
+            final SocketChannel client = serverSocketChannel.accept();
+            client.configureBlocking(false);
+            client.socket().setKeepAlive(true);
+            client.register(selector, SelectionKey.OP_READ);
+
+            logger.info("Accepted connection: ".concat(client.getLocalAddress().toString()));
+        } catch (Exception e) {
+            logger.error(e.toString());
+
+            key.cancel();
+        }
     }
 
-    private void writeToNode(SelectionKey key) throws IOException {
+    private void writeToNode(SelectionKey key) {
         final Selector selector = key.selector();
         final SocketChannel client = (SocketChannel) key.channel();
         final NodeMessage message = (NodeMessage) key.attachment();
@@ -203,7 +231,12 @@ public class NodeServer {
                     .concat(". \n").concat(ex.toString()));
         }
 
-        client.register(selector, SelectionKey.OP_READ, message.getServerNode());
+        try {
+            client.register(selector, SelectionKey.OP_READ, message.getServerNode());
+        } catch (IOException ex) {
+            logger.error(ex.toString());
+        }
+
     }
 
     private void writeToWallet(SelectionKey key) {
@@ -230,6 +263,7 @@ public class NodeServer {
         } catch (IOException ex) {
             logger.info("System interrupted while writing verification to wallet: ".concat(receiverName).concat(". \n")
                     .concat(ex.toString()));
+            key.cancel();
         }
 
         if (closeConnection) {
@@ -240,6 +274,12 @@ public class NodeServer {
             }
 
             key.cancel();
+        } else {
+            try {
+                client.register(key.selector(), SelectionKey.OP_READ, null);
+            } catch (IOException ex) {
+                logger.error(ex.toString());
+            }
         }
     }
 
@@ -248,16 +288,6 @@ public class NodeServer {
 
         while (buffer.remaining() > 0) {
             client.write(buffer);
-        }
-    }
-
-    private void processWriteRequest(SelectionKey key) throws IOException {
-        if (key.attachment() instanceof NodeMessage) {
-            logger.info("1..");
-            writeToNode(key);
-        } else {
-            logger.info("2..");
-            writeToWallet(key);
         }
     }
 
@@ -271,8 +301,7 @@ public class NodeServer {
                     || map.get("command").equals(Command.CONFIRM.name())
                     || map.get("command").equals(Command.RECORD.name())) {
 
-                if (map.containsKey("nodename")
-                    && map.containsKey("guid")
+                if (map.containsKey("guid")
                     && map.containsKey("senderkey")
                     && map.containsKey("receiverkey")
                     && map.containsKey("amount")
@@ -294,7 +323,7 @@ public class NodeServer {
                             }
                         }
                     } else {
-                        return true;
+                        return map.containsKey("nodename");
                     }
                 }
             } else if (map.get("command").equals(Command.VERIFY_ERR.name())) {

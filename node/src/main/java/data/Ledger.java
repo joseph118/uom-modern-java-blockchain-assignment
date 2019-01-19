@@ -3,19 +3,18 @@ package data;
 import data.balance.Balance;
 import data.history.HistoryLine;
 import data.history.TransactionHistory;
+import org.apache.log4j.Logger;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class Ledger {
+
+    final static Logger logger = Logger.getLogger(Ledger.class);
 
     private static final String LEDGER_EXTENSION = ".ledger";
     private static final String CSV_DELIMITER = ",";
@@ -24,10 +23,19 @@ public class Ledger {
     }
 
     public static boolean addTransaction(Transaction transaction, String nodeName) {
-        try (BufferedWriter writer = Files.newBufferedWriter(
-                Paths.get(ClassLoader.getSystemResource(nodeName.concat(LEDGER_EXTENSION)).toURI()))) {
+        final String row = transaction.toCsvRow();
+        final File ledgerFile = new File(ClassLoader.getSystemResource(nodeName.concat(LEDGER_EXTENSION)).getFile());
 
-            writer.write(transaction.toCsvRow());
+        try ( BufferedReader reader = new BufferedReader(new StringReader(row));
+              PrintWriter writer = new PrintWriter(new FileWriter(ledgerFile)) ) {
+
+
+
+            reader.lines().forEach(s -> {
+                logger.info("Added: ".concat(s));
+                writer.println(s);
+            });
+
             return true;
 
         } catch (Exception e) {
@@ -40,7 +48,7 @@ public class Ledger {
     public static Balance getUserBalance(String nodeName, String publicKey) {
         List<TransactionHistory> transactionHistories = getTransactionHistory(nodeName, publicKey);
 
-        return transactionHistories.parallelStream()
+        return transactionHistories.stream()
                 .reduce(
                         new Balance(0,0, "", 0),
                         (balance, transactionHistory) -> {
@@ -108,13 +116,16 @@ public class Ledger {
     public static List<TransactionHistory> getTransactionHistory(String nodeName, String publicKey) {
         try (InputStream nodeLedgerStream = ClassLoader.getSystemResourceAsStream(nodeName.concat(LEDGER_EXTENSION))) {
             if (nodeLedgerStream != null) {
-                return new BufferedReader(new InputStreamReader(nodeLedgerStream))
+                InputStreamReader streamReader = new InputStreamReader(nodeLedgerStream, StandardCharsets.UTF_8);
+                BufferedReader reader = new BufferedReader(streamReader);
+
+                return reader
                         .lines()
                         .parallel()
                         .map(s -> s.split(CSV_DELIMITER))
                         .map(Ledger::mapToTransaction)
                         .filter(transaction -> transaction.getRecipientPublicKey().equals(publicKey)
-                                || transaction.getSenderPublicKey().equals(publicKey))
+                                    || transaction.getSenderPublicKey().equals(publicKey))
                         .map(transaction -> Ledger.mapToTransactionHistory(transaction, publicKey))
                         .collect(Collectors.toList());
             }

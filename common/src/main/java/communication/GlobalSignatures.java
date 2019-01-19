@@ -43,7 +43,6 @@ public class GlobalSignatures {
     public static boolean isVerifiedTransactionSignatureValid(PublicKey key,
                                                               String signature,
                                                               Transaction transaction) {
-
         final SignatureVerifier signatureVerifier = generateTransactionSignatureVerifier(key, transaction);
 
         return signatureVerifier.verify(signature);
@@ -96,4 +95,5 @@ public class GlobalSignatures {
                 .addData(transaction.getVerificationSignature2())
                 .addData(transaction.getVerificationSignature3());
     }
+
 }

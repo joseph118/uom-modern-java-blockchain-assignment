@@ -32,7 +32,6 @@ public class Verification {
                                              Command command, String nodeName, PrivateKey privateKey,
                                              Map<String, NodeDataRequest> nodeDataRequest) throws IOException {
         final VerifyRequest verifyRequest = new VerifyRequest(requestMessage);
-
         Path path = Resource.getNodeCertificate(verifyRequest.getNodeName());
 
         if (path != null) {
@@ -52,19 +51,21 @@ public class Verification {
                     verifyRequest.getHash(),
                     verifyRequest.getNodeName())) {
 
+
                 final float amount = Float.parseFloat(verifyRequest.getAmountString());
                 final float userBalance = Ledger.getUserBalance(nodeName, verifyRequest.getSenderKey()).calculateBalance();
 
+
                 if (userBalance >= amount) {
                     if (command.equals(Command.VERIFY)) {
-                        logger.info("Command verify");
                         final String newHash = Transactions.generateTransactionHash(verifyRequest.getSenderKey(),
                                 verifyRequest.getReceiverKey(),
                                 verifyRequest.getGuid(),
                                 verifyRequest.getAmountString(),
-                                verifyRequest.getSignature(),
+                                verifyRequest.getSenderSignature(),
                                 verifyRequest.getTimestamp(),
                                 verifyRequest.getNodeName());
+
 
                         if (verifyRequest.getHash().equals(newHash)) {
                             final String message = Messages.generateNodeVerifyMessage(privateKey,
@@ -85,7 +86,6 @@ public class Verification {
                             nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                         }
                     } else {
-                        logger.info("Command verify ok");
                         // Verify ok
                         final String signature = verifyRequest.getNodeName()
                                 .concat(":").concat(verifyRequest.getSignature());
@@ -96,24 +96,29 @@ public class Verification {
                         nodeClient.register(selector, SelectionKey.OP_READ, serverNode);
                     }
                 } else {
-                    final String message = Messages
-                            .generateNodeVerifyErrorMessage(privateKey, nodeName, Command.VERIFY_ERR);
-                    logger.error(message);
-
-                    nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                    triggerErrorMessage(privateKey, nodeName, serverNode, key);
                 }
             } else {
-                final String message = Messages
-                        .generateNodeVerifyErrorMessage(privateKey, nodeName, Command.VERIFY_ERR);
-
-                logger.error(message);
-                nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+                triggerErrorMessage(privateKey, nodeName, serverNode, key);
             }
         } else {
             logger.error("Error - Node certificate not found.");
 
             key.cancel();
             key.channel().close();
+        }
+    }
+
+    private static void triggerErrorMessage(PrivateKey privateKey, String nodeName, ServerNode serverNode, SelectionKey key) {
+        final String message = Messages
+                .generateNodeVerifyErrorMessage(privateKey, nodeName, Command.VERIFY_ERR);
+
+        logger.error(message);
+        try {
+            key.channel().register(key.selector(), SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
+        } catch (ClosedChannelException ex) {
+            logger.error(ex);
+            key.cancel();
         }
     }
 
@@ -127,14 +132,20 @@ public class Verification {
             if (Signatures.verifyNodeSignature(nodePublicKey, command, nodeName, signature)) {
                 final ServerNodeVerify serverNodeVerify = (ServerNodeVerify) key.attachment();
                 final SocketChannel nodeClient = (SocketChannel) key.channel();
-
+                logger.info("incrementing");
                 nodeDataRequest.get(serverNodeVerify.getSenderKey()).incrementErrorResponse();
-
+                logger.info("register...");
                 nodeClient.register(selector, SelectionKey.OP_READ, new ServerNode(serverNodeVerify.getName(),
                         serverNodeVerify.getIp(),
                         serverNodeVerify.getPort()));
+
+                logger.info("dead");
+            } else {
+                logger.error("Error - invalid signature.");
             }
         } else {
+            logger.error("Error - Node certificate not found.");
+
             key.cancel();
             key.channel().close();
         }

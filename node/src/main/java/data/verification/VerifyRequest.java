@@ -14,7 +14,7 @@ public class VerifyRequest {
     private final String signature;
 
     public VerifyRequest(Map<String, String> requestMessage) {
-        this.nodeName = requestMessage.get("nodeName");
+        this.nodeName = requestMessage.get("nodename");
         this.guid = requestMessage.get("guid");
         this.senderKey = requestMessage.get("senderkey");
         this.receiverKey = requestMessage.get("receiverkey");
@@ -59,5 +59,20 @@ public class VerifyRequest {
 
     public String getSignature() {
         return signature;
+    }
+
+    @Override
+    public String toString() {
+        return "VerifyRequest{" +
+                "nodeName='" + nodeName + '\'' +
+                ", guid='" + guid + '\'' +
+                ", senderKey='" + senderKey + '\'' +
+                ", receiverKey='" + receiverKey + '\'' +
+                ", amountString='" + amountString + '\'' +
+                ", senderSignature='" + senderSignature + '\'' +
+                ", timestamp='" + timestamp + '\'' +
+                ", hash='" + hash + '\'' +
+                ", signature='" + signature + '\'' +
+                '}';
     }
 }

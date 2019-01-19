@@ -91,26 +91,31 @@ public class Messages {
     }
 
     public static String generateWalletConfirmationMessage(PrivateKey privateKey, String nodeName, Transaction transaction) {
-        final String signature = GlobalSignatures.generateConfirmedTransactionSignature(privateKey, transaction);
+        final String message = transaction.toTransactionConfirmationResponseRow();
+        final String encodedMessage = new String(
+                Base64.getEncoder().encode(message.getBytes()));
+        final String signature = Signatures.generateSignature(privateKey, message);
 
         return "signature=".concat(signature)
                 .concat(",nodename=").concat(nodeName)
-                .concat(",command=").concat(Command.CONFIRM_OK.name()).concat(",")
-                .concat(transaction.toTransactionConfirmationResponseRow());
+                .concat(",command=").concat(Command.CONFIRM_OK.name())
+                .concat(",payload=").concat(encodedMessage);
     }
 
-    public static String generateNodeRecordOkMessage(PrivateKey privateKey, Transaction transaction) {
+    public static String generateNodeRecordOkMessage(PrivateKey privateKey, Transaction transaction, String nodeName) {
         final String signature = Signatures.generateSignature(privateKey, transaction.getSenderPublicKey());
 
         return "signature=".concat(signature)
+                .concat(",nodename=").concat(nodeName)
                 .concat(",command=").concat(Command.RECORD_OK.name())
                 .concat(",senderkey=").concat(transaction.getSenderPublicKey());
     }
 
-    public static String generateNodeRecordErrorMessage(PrivateKey privateKey, Transaction transaction) {
+    public static String generateNodeRecordErrorMessage(PrivateKey privateKey, Transaction transaction, String nodeName) {
         final String signature = Signatures.generateSignature(privateKey, transaction.getSenderPublicKey());
 
         return "signature=".concat(signature)
+                .concat(",nodename=").concat(nodeName)
                 .concat(",command=").concat(Command.RECORD_ERR.name())
                 .concat(",senderkey=").concat(transaction.getSenderPublicKey());
     }

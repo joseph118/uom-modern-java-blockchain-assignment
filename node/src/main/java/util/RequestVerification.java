@@ -4,6 +4,7 @@ import data.NodeDataRequest;
 import org.apache.log4j.Logger;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class RequestVerification {
     private final static Logger logger = Logger.getLogger(RequestVerification.class);
@@ -14,13 +15,12 @@ public class RequestVerification {
 
     public static boolean waitForVerificationProcess(String userPublicKey, Map<String, NodeDataRequest> dataMap) {
         try {
-            logger.info("waitForVerificationProcess...");
             int requestCounter = 0;
             while (!areAllRequestsReady(userPublicKey, dataMap) && requestCounter != 3) {
-                logger.info("waitForVerificationProcess...".concat(String.valueOf(requestCounter)));
-                Thread.sleep(5000);
+                TimeUnit.SECONDS.sleep(5);
                 requestCounter++;
             }
+            // TODO once done update... and clear... also add checks on threads not to blow up
         } catch (InterruptedException ex) {
             logger.error(ex);
 

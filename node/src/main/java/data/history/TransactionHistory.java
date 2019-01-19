@@ -67,4 +67,16 @@ public class TransactionHistory {
                 .concat(String.valueOf(transactionAmount)).concat("\n")
                 .concat(secondParty).concat("\n\n");
     }
+
+    @Override
+    public String toString() {
+        return "TransactionHistory{" +
+                "drCrIndicator=" + drCrIndicator +
+                ", timestamp=" + timestamp +
+                ", transactionAmount=" + transactionAmount +
+                ", senderKey='" + senderKey + '\'' +
+                ", recipientKey='" + recipientKey + '\'' +
+                ", hash='" + hash + '\'' +
+                '}';
+    }
 }
