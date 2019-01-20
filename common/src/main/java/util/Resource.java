@@ -3,6 +3,7 @@ package util;
 import data.KeyHolder;
 import security.KeyLoader;
 
+import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -65,7 +66,6 @@ public class Resource {
     }
 
     public static URL getResource(String name, String extension) {
-        ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-        return classLoader.getResource(name.concat(extension));
+        return Resource.class.getResource("/".concat(name).concat(extension));
     }
 }

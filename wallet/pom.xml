@@ -11,5 +11,46 @@
 
     <artifactId>wallet</artifactId>
 
+    <properties>
+        <main-class>Wallet</main-class>
+    </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>mt.edu.um.las3006.assignment</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${main-class}</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>*.pfx</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>../common/src/main/resources</directory>
+                <includes>
+                    <include>*.crt</include>
+                </includes>
+            </resource>
+        </resources>
+    </build>
 </project>

@@ -38,8 +38,6 @@ public class Confirmation {
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
 
-        String senderKey = requestMessage.getOrDefault("key", "");
-
         if (Response.isWalletConfirmResponseValid(requestMessage)) {
             final PublicKey walletKey = KeyLoader.decodePublicKey(requestMessage.get("key"));
             final String signature = requestMessage.get("signature");

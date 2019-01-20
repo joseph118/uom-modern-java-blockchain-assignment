@@ -211,8 +211,6 @@ public class Wallet {
         return signatureVerifier.verify(signature);
     }
 
-
-
     private static String generateConfirmationMessage(KeyHolder keyHolder, Transaction transaction) {
         final String signature = GlobalSignatures.generateVerifiedTransactionSignature(keyHolder.getPrivateKey(), transaction);
 
