@@ -205,10 +205,8 @@ public class Wallet {
                                                String payload,
                                                String signature) {
 
-        System.out.println(2);
         SignatureVerifier signatureVerifier = new SignatureVerifier(nodePublicKey);
         signatureVerifier.addData(payload);
-        System.out.println(3);
 
         return signatureVerifier.verify(signature);
     }
