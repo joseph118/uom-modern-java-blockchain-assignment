@@ -45,10 +45,8 @@ public class Messages {
         final String signature = Signatures.generateSignature(privateKey, data);
         final String encodedData = new String(Base64.getEncoder().encode(data.getBytes()));
 
-        return "payload="
-                .concat(encodedData)
-                .concat(",signature=")
-                .concat(signature);
+        return "signature=".concat(signature)
+                .concat(",payload=").concat(encodedData);
     }
 
     public static String generateWalletTransferMessage(PrivateKey privateKey,

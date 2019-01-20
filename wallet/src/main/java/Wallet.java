@@ -25,6 +25,8 @@ import java.util.UUID;
 
 public class Wallet {
 
+    private static int bufferSize = 1024;
+
     /**
      *
      * @param args - ['username=****'], ['nodename=****'], ['command=****']
@@ -82,7 +84,7 @@ public class Wallet {
                                     SocketChannel client = SocketChannel.open(nodeAddress);
 
                                     if (client.isConnected()) {
-                                        ByteBuffer buffer = ByteBuffer.allocate(2048);
+                                        ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
 
                                         final String request =
                                                 generateWalletRequestMessage(keyHolder, userCommand, destinationKey, amount);
@@ -157,10 +159,6 @@ public class Wallet {
                     final String payload = new String(Base64.getDecoder().decode(payloadEncoded));
                     final String signature = responseMap.get("signature");
 
-                    System.out.println(payload);
-                    System.out.println("1");
-
-
                     System.out.println( Wallet.verifyNodeSignature(keyHolder.getNodePublicKey(), payload, signature)
                             ? payload.replace(',', '\n')
                             : "Invalid signature from the server." );
@@ -177,22 +175,24 @@ public class Wallet {
 
     private static String readClientData(SocketChannel client, ByteBuffer buffer) throws IOException {
         int bytesRead = client.read(buffer);
-        String data = "";
+        StringBuilder stringBuilder = new StringBuilder();
 
         if (bytesRead > 0) {
             byte[] byteArray = new byte[bytesRead];
             buffer.flip();
             buffer.get(byteArray);
 
-            data = new String(buffer.array()).trim();
+            String packet = new String(byteArray).trim();
 
-            if (bytesRead == 2048) {
+            stringBuilder.append(packet);
+
+            if (bytesRead == bufferSize) {
                 buffer.clear();
-                data = data.concat(readClientData(client, buffer));
+                stringBuilder.append(readClientData(client, buffer));
             }
         }
 
-        return data;
+        return stringBuilder.toString();
     }
 
     private static boolean isMapValid(Map<String, String> map) {

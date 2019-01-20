@@ -283,8 +283,7 @@ public class NodeServer {
 
     private void writeToClient(String message, SocketChannel client) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(message.getBytes());
-        // TODO is it sending all the data? or not receiving? check..
-        while (buffer.remaining() > 0) {
+        while (buffer.hasRemaining()) {
             client.write(buffer);
         }
     }
