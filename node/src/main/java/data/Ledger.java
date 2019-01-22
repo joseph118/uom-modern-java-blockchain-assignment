@@ -4,17 +4,16 @@ import data.balance.Balance;
 import data.history.HistoryLine;
 import data.history.TransactionHistory;
 import org.apache.log4j.Logger;
+import util.Resource;
 
 import java.io.*;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Ledger {
 
@@ -31,10 +30,7 @@ public class Ledger {
         final String row = transaction.toCsvRow().concat(newLine);
 
         try {
-            URL ledgerUrl = ClassLoader.getSystemResource(nodeName.concat(LEDGER_EXTENSION));
-
-            Files.write(Paths.get(ledgerUrl.toURI()), row.getBytes(), StandardOpenOption.APPEND);
-
+            Files.write(Resource.getResource(nodeName, LEDGER_EXTENSION), row.getBytes(), StandardOpenOption.APPEND);
             logger.info("Added: ".concat(row));
 
             return true;
@@ -114,21 +110,16 @@ public class Ledger {
     }
 
     public static List<TransactionHistory> getTransactionHistory(String nodeName, String publicKey) {
-        try (InputStream nodeLedgerStream = ClassLoader.getSystemResourceAsStream(nodeName.concat(LEDGER_EXTENSION))) {
-            if (nodeLedgerStream != null) {
-                InputStreamReader streamReader = new InputStreamReader(nodeLedgerStream, StandardCharsets.UTF_8);
-                BufferedReader reader = new BufferedReader(streamReader);
+        try (Stream<String> lines = Files.lines(Resource.getResource(nodeName, LEDGER_EXTENSION))) {
+            return lines
+                    .parallel()
+                    .map(s -> s.split(CSV_DELIMITER))
+                    .map(Ledger::mapToTransaction)
+                    .filter(transaction -> transaction.getRecipientPublicKey().equals(publicKey)
+                                || transaction.getSenderPublicKey().equals(publicKey))
+                    .map(transaction -> Ledger.mapToTransactionHistory(transaction, publicKey))
+                    .collect(Collectors.toList());
 
-                return reader
-                        .lines()
-                        .parallel()
-                        .map(s -> s.split(CSV_DELIMITER))
-                        .map(Ledger::mapToTransaction)
-                        .filter(transaction -> transaction.getRecipientPublicKey().equals(publicKey)
-                                    || transaction.getSenderPublicKey().equals(publicKey))
-                        .map(transaction -> Ledger.mapToTransactionHistory(transaction, publicKey))
-                        .collect(Collectors.toList());
-            }
         } catch (Exception e) {
             System.out.println(e.toString());
         }
