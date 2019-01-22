@@ -16,12 +16,9 @@ public class Resource {
 
     }
     
-    public static KeyHolder getWalletKeys(String name, String password, URL userResource, URL nodeResource) {
+    public static KeyHolder getWalletKeys(String name, String password, Path userPath, Path nodePath) {
 
         try {
-            final Path userPath = Paths.get(userResource.toURI());
-            final Path nodePath = Paths.get(nodeResource.toURI());
-
             final PublicKey publicKey = KeyLoader.loadPublicKey(userPath, name, password);
             final PrivateKey privateKey = KeyLoader.loadPrivateKey(userPath, name, password, password);
             final PublicKey nodePublicKey = KeyLoader.loadPublicKey(nodePath);
@@ -35,10 +32,9 @@ public class Resource {
     }
 
     public static KeyHolder getNodeKeys(String nodeName) {
-        final URL url = getResource(nodeName,".pfx");
-
         try {
-            final Path path = Paths.get(url.toURI());
+            final Path path = getResource(nodeName,".pfx");
+            System.out.println(path);
             final String password = nodeName.concat("qwerty");
 
             final PublicKey publicKey = KeyLoader.loadPublicKey(path, nodeName, password);
@@ -53,19 +49,20 @@ public class Resource {
     }
 
     public static Path getNodeCertificate(String nodeName) {
-        final URL nodeCertificate = getResource(nodeName, ".crt");
-        Path path;
+        return getResource(nodeName, ".crt");
+    }
 
+    public static Path getResource(String name, String extension) {
         try {
-            path = Paths.get(nodeCertificate.toURI());
-        } catch (URISyntaxException ex) {
-            path = null;
+            File directory = new File("./");
+            String stringPath = directory.getAbsolutePath()
+                    .substring(0, directory.getAbsolutePath().length() - 1)
+                    .concat("resources\\").concat(name).concat(extension);
+
+            return Paths.get(stringPath);
+        } catch (Exception e) {
+            return  null;
         }
-
-        return path;
     }
 
-    public static URL getResource(String name, String extension) {
-        return Resource.class.getResource("/".concat(name).concat(extension));
-    }
 }

@@ -49,9 +49,7 @@ public class Nodes {
     }
 
     private static Properties getProperties() {
-        final URL url = ClassLoader.getSystemResource(Nodes.NODE_PROPERTY_FILENAME);
-
-        try (final FileInputStream fis = new FileInputStream(url.getFile())) {
+        try (final FileInputStream fis = new FileInputStream(Resource.getResource("nodes", ".properties").toString())) {
             final Properties properties = new Properties();
             properties.load(fis);
 

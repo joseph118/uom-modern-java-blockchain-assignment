@@ -41,7 +41,7 @@ public class NodeServer {
     public void startServer(int portNumber, Selector selector) throws IOException {
         setRunning(true);
 
-        ExecutorService executor = Executors.newFixedThreadPool(3);
+        ExecutorService executor = Executors.newWorkStealingPool();
 
         final ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.socket().bind(new InetSocketAddress(portNumber));

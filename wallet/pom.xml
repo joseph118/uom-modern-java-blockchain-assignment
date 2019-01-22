@@ -28,6 +28,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.1.1</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -35,20 +36,32 @@
                         </manifest>
                     </archive>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>assemble-all</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
 
         <resources>
             <resource>
+                <targetPath>${basedir}/target/resources</targetPath>
                 <directory>src/main/resources</directory>
                 <includes>
                     <include>*.pfx</include>
                 </includes>
             </resource>
             <resource>
+                <targetPath>${basedir}/target/resources</targetPath>
                 <directory>../common/src/main/resources</directory>
                 <includes>
                     <include>*.crt</include>
+                    <include>*.properties</include>
                 </includes>
             </resource>
         </resources>

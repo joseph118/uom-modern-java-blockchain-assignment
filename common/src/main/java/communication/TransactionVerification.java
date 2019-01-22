@@ -22,9 +22,8 @@ public class TransactionVerification {
         final String nodeName = data[0];
         final String nodeSignature = data[1];
 
-        URL url = Resource.getResource(nodeName, ".crt");
         try {
-            final Path nodeCertificatePath = Paths.get(url.toURI());
+            final Path nodeCertificatePath = Resource.getResource(nodeName, ".crt");
             final PublicKey nodePublicKey = KeyLoader.loadPublicKey(nodeCertificatePath);
 
             return GlobalSignatures.isNodeVerifiedTransactionSignatureValid(nodePublicKey, nodeSignature, transaction.getGuid(), transaction.getSenderPublicKey(), transaction.getRecipientPublicKey(), transaction.getStringTransactionAmount(), transaction.getSenderAuthorisationSignature(), transaction.getStringTimestamp(), transaction.getHash(), nodeName);

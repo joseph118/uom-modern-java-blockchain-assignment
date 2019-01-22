@@ -17,6 +17,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Path;
 import java.security.PublicKey;
 import java.util.Base64;
 import java.util.Map;
@@ -64,15 +65,15 @@ public class Wallet {
                         }
                     }
 
-                    final URL userKeyResource = Resource.getResource(username, ".pfx");
-                    if (userKeyResource != null) {
+                    final Path userKeyPath = Resource.getResource(username, ".pfx");
+                    if (userKeyPath != null) {
                         final String nodeName = map.get("nodename");
                         final ServerNode node = Nodes.getServerNode(nodeName);
 
                         if (node != null) {
-                            final URL nodeCertificateResource = Resource.getResource(nodeName, ".crt");
+                            final Path nodeCertificatePath = Resource.getResource(nodeName, ".crt");
                             final KeyHolder keyHolder = Resource
-                                    .getWalletKeys(username, userPassword, userKeyResource, nodeCertificateResource);
+                                    .getWalletKeys(username, userPassword, userKeyPath, nodeCertificatePath);
 
                             if (keyHolder != null) {
                                 final String walletKey = KeyLoader.encodePublicKey(keyHolder.getPublicKey());
