@@ -71,9 +71,13 @@ public class NodeServer {
                     } else if (key.isValid() && key.isWritable()) {
                         // a channel is ready for writing
                         if (key.attachment() instanceof NodeMessage) {
-                            writeToNode(key);
+                            final NodeMessage nodeMessage = (NodeMessage) key.attachment();
+                            executor.submit(() -> writeToNode(key, nodeMessage));
+                            key.attach(nodeMessage.getServerNode());
                         } else if (key.attachment() instanceof Message) {
-                            writeToWallet(key);
+                            final Message message = (Message) key.attachment();
+                            executor.submit(() -> writeToWallet(key, message));
+                            key.attach(null);
                         }
                     } else if (key.isValid() && key.isReadable()) {
                         // a channel is ready for reading
@@ -214,10 +218,9 @@ public class NodeServer {
         }
     }
 
-    private void writeToNode(SelectionKey key) {
+    private void writeToNode(SelectionKey key, NodeMessage message) {
         final Selector selector = key.selector();
         final SocketChannel client = (SocketChannel) key.channel();
-        final NodeMessage message = (NodeMessage) key.attachment();
 
         logger.info("To: ".concat(message.getServerNode().getName())
                 .concat(" Sending: ".concat(message.getMessage())));
@@ -237,18 +240,19 @@ public class NodeServer {
 
     }
 
-    private void writeToWallet(SelectionKey key) {
+    private void writeToWallet(SelectionKey key, Message walletMessage) {
         final SocketChannel client = (SocketChannel) key.channel();
         boolean closeConnection = true;
 
         final String messageResult;
         final String receiverName;
-        if (key.attachment() instanceof ErrorMessage) {
-            final ErrorMessage message = (ErrorMessage) key.attachment();
+        if (walletMessage instanceof ErrorMessage) {
+            System.out.println("3");
+            final ErrorMessage message = (ErrorMessage) walletMessage;
             messageResult = message.getErrorMessage();
             receiverName = message.getReceiverName();
         } else {
-            final SuccessMessage message = (SuccessMessage) key.attachment();
+            final SuccessMessage message = (SuccessMessage) walletMessage;
             closeConnection = message.getCloseConnection();
             messageResult = message.getMessage();
             receiverName = message.getReceiverName();
