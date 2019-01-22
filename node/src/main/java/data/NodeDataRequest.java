@@ -11,13 +11,15 @@ public class NodeDataRequest {
     private AtomicInteger connectionsError;
     private final int connections;
     private Queue<String> dataQueue;
+    private Thread thread;
 
-    public NodeDataRequest(int connections) {
+    public NodeDataRequest(int connections, Thread thread) {
         this.connectionsOk = new AtomicInteger(0);
         this.connectionsError = new AtomicInteger(0);
         this.dataQueue = new ConcurrentLinkedQueue<>();
 
         this.connections = connections;
+        this.thread = thread;
     }
 
     public int incrementOkResponse() {
@@ -26,7 +28,12 @@ public class NodeDataRequest {
 
     public void addDataAndIncrementOkResponse(String signature) {
         dataQueue.offer(signature);
-        incrementOkResponse();
+
+        if (incrementOkResponse() == connections) {
+            if (thread != null) {
+                thread.interrupt();
+            }
+        }
     }
 
     public List<String> getData() {

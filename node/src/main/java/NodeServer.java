@@ -119,7 +119,7 @@ public class NodeServer {
                 // Wallet Requests
                 if (userCommand.equals(Command.TRANSFER)) {
                     logger.info("Transfer verification received from wallet:".concat(client.getLocalAddress().toString()));
-                    Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(nodeName), nodeKeys.getPrivateKey(), nodeDataMap);
+                    Transfer.processTransferRequest(key, requestMessage, nodeName, this.serverNodes.getConnectedNodes(nodeName), nodeKeys.getPrivateKey(), nodeDataMap, Thread.currentThread());
 
                 } else if (userCommand.equals(Command.HISTORY) || userCommand.equals(Command.BALANCE)) {
                     logger.info("Balance or history received from wallet: ".concat(client.getLocalAddress().toString()));
@@ -127,7 +127,7 @@ public class NodeServer {
 
                 } else if (userCommand.equals(Command.CONFIRM)) {
                     logger.info("Transaction Confirm received from wallet: ".concat(client.getLocalAddress().toString()));
-                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName), nodeDataMap);
+                    Confirmation.processTransferConfirmation(key, requestMessage, nodeKeys.getPrivateKey(), nodeName, serverNodes.getConnectedNodes(nodeName), nodeDataMap, Thread.currentThread());
 
 
 

@@ -79,8 +79,8 @@ public class Verification {
                                     verifyRequest.getHash(),
                                     nodeName);
 
-                            nodeDataRequest.put(verifyRequest.getSenderKey(), new NodeDataRequest(1));
-                            nodeDataRequest.put(verifyRequest.getReceiverKey(), new NodeDataRequest(1));
+                            nodeDataRequest.put(verifyRequest.getSenderKey(), new NodeDataRequest(1, null));
+                            nodeDataRequest.put(verifyRequest.getReceiverKey(), new NodeDataRequest(1, null));
                             nodeClient.register(selector, SelectionKey.OP_WRITE, new NodeMessage(message, serverNode));
                         } else {
                             final String message = Messages
@@ -162,6 +162,7 @@ public class Verification {
                                          List<ServerNode> serverNodes,
                                          PrivateKey privateKey,
                                          Map<String, NodeDataRequest> nodeDataRequestMap,
+                                         Thread thread,
                                          String nodeName,
                                          String command,
                                          String guid,
@@ -172,7 +173,7 @@ public class Verification {
                                          String timestamp,
                                          String hash) {
         final Selector selector = key.selector();
-        final NodeDataRequest nodeDataRequest = new NodeDataRequest(serverNodes.size());
+        final NodeDataRequest nodeDataRequest = new NodeDataRequest(serverNodes.size(), thread);
         nodeDataRequestMap.put(senderKey, nodeDataRequest);
         serverNodes.forEach(serverNode -> {
             final String message = Messages.generateNodeVerifyMessage(privateKey, command,

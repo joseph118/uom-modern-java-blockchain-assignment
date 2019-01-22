@@ -22,9 +22,11 @@ public class RequestVerification {
                 requestCounter++;
             } while (!areAllRequestsReady(userPublicKey, dataMap) && requestCounter != 3);
         } catch (InterruptedException ex) {
-            logger.error(ex);
+            if (!areAllRequestsReady(userPublicKey, dataMap)) {
+                return false;
+            }
 
-            return false;
+            logger.info("Verification process ready.");
         }
 
         return true;

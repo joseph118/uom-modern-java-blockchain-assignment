@@ -39,7 +39,7 @@ public class Transfer {
 
     public static void processTransferRequest(SelectionKey key, Map<String, String> requestMessage, String nodeName,
                                               List<ServerNode> connectedNodes, PrivateKey privateKey,
-                                              Map<String, NodeDataRequest> dataMap) throws IOException {
+                                              Map<String, NodeDataRequest> dataMap, Thread thread) throws IOException {
 
         final String destinationKey = requestMessage.get("destinationkey");
         final String guid = requestMessage.get("guid");
@@ -67,7 +67,7 @@ public class Transfer {
 
                             // Send verification to nodes
                             Verification.sendVerificationRequests(key, connectedNodes, privateKey,
-                                    dataMap, nodeName, Command.VERIFY.name(), guid,
+                                    dataMap, thread, nodeName, Command.VERIFY.name(), guid,
                                     base64PublicKey, destinationKey, stringAmount, signature,
                                     timestampString, transactionHash);
 

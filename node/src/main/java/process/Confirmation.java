@@ -33,7 +33,8 @@ public class Confirmation {
                                                    PrivateKey privateKey,
                                                    String nodeName,
                                                    List<ServerNode> connectedNodes,
-                                                   Map<String, NodeDataRequest> nodeDataRequestMap) throws IOException {
+                                                   Map<String, NodeDataRequest> nodeDataRequestMap,
+                                                   Thread thread) throws IOException {
 
         final SocketChannel client = (SocketChannel) key.channel();
         final Selector selector = key.selector();
@@ -46,7 +47,7 @@ public class Confirmation {
             if (GlobalSignatures.isVerifiedTransactionSignatureValid(walletKey, signature, transaction)) {
                 if (TransactionVerification.isTransactionValid(transaction)) {
                     final String nodeMessage = Messages.generateNodeConfirmationMessage(privateKey, nodeName, transaction);
-                    Record.triggerTransactionConfirmation(selector, connectedNodes, nodeName, nodeMessage, nodeDataRequestMap, transaction.getSenderPublicKey());
+                    Record.triggerTransactionConfirmation(selector, connectedNodes, nodeName, nodeMessage, nodeDataRequestMap, transaction.getSenderPublicKey(), thread);
 
                     if (RequestVerification.waitForVerificationProcess(transaction.getSenderPublicKey(), nodeDataRequestMap)) {
                         Ledger.addTransaction(transaction, nodeName);

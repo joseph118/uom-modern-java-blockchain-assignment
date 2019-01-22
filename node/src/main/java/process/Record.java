@@ -62,10 +62,11 @@ public class Record {
                                                       String nodeName,
                                                       String message,
                                                       Map<String, NodeDataRequest> nodeDataRequestMap,
-                                                      String senderKey) {
+                                                      String senderKey,
+                                                      Thread thread) {
 
         if (!connectedNodes.isEmpty()) {
-            final NodeDataRequest nodeDataRequest = new NodeDataRequest(connectedNodes.size());
+            final NodeDataRequest nodeDataRequest = new NodeDataRequest(connectedNodes.size(), thread);
             nodeDataRequestMap.put(senderKey, nodeDataRequest);
             connectedNodes.forEach(serverNode -> {
                 try {
