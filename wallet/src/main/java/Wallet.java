@@ -182,13 +182,13 @@ public class Wallet {
             byte[] byteArray = new byte[bytesRead];
             buffer.flip();
             buffer.get(byteArray);
+            buffer.clear();
 
             String packet = new String(byteArray).trim();
 
             stringBuilder.append(packet);
 
             if (bytesRead == bufferSize) {
-                buffer.clear();
                 stringBuilder.append(readClientData(client, buffer));
             }
         }
